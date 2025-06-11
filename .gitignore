@@ -1,0 +1,6 @@
+# .gitignore
+*.csv
+*.tsv
+*.fasta
+*.fna
+*.c

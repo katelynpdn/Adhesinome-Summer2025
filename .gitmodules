@@ -1,0 +1,3 @@
+[submodule "predgpi"]
+	path = predgpi
+	url = https://github.com/BolognaBiocomp/predgpi.git
