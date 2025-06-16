@@ -4,3 +4,4 @@
 *.fasta
 *.fna
 *.c
+*results
