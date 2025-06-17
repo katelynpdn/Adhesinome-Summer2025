@@ -3,5 +3,4 @@
 *.tsv
 *.fasta
 *.fna
-*.c
 *results
