@@ -20,24 +20,24 @@ cd scripts
 # FungalRV
 python fastaRemoveX.py "$proteomeFile" "$proteomeFile_noX"
 cd ../FungalRV_adhesin_predictor
-echo "Running FungalRV"
+echo "-------------Running FungalRV-------------"
 perl run_fungalrv_adhesin_predictor.pl "$proteomeFile_noX" ../results/fungalrv_output y
 rm "$proteomeFile_noX"
 
 # PredGPI
 cd ../predgpi
 export PREDGPI_HOME=$(pwd)
-echo "Running PredGPI"
+echo "-------------Running PredGPI-------------"
 python predgpi.py -f "$proteomeFile" -m gff3 -o ../results/predgpi_output
 
 # SignalP
 cd ../scripts
-echo "Running SignalP"
+echo "-------------Running SignalP-------------"
 ./runSignalP.sh "$proteomeFile"
 mv biolib_results/merged_prediction_results.txt ../results/signalP_output
 
 # Combine results
-echo "Combining results"
+echo "-------------Combining results-------------"
 cd ../results
 # Remove first 4 lines of fungalrv_output
 tail -n +4 fungalrv_output > tmpfile && mv tmpfile fungalrv_output
