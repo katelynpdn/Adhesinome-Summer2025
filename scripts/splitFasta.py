@@ -8,7 +8,7 @@ if len(sys.argv) != 2:
     print("Usage: python splitFasta.py <file.fasta>")
 
 inputFile = sys.argv[1]
-startInputFile = os.path.splitext(inputFile)[0]
+startInputFile = os.path.splitext(os.path.basename(inputFile))[0]
 SPLIT_COUNT = 300
 
 # From BioPython Documentation: https://biopython.org/wiki/Split_large_file
@@ -35,10 +35,7 @@ def batch_iterator(iterator, batch_size):
 
 record_iter = SeqIO.parse(open(inputFile), "fasta")
 for i, batch in enumerate(batch_iterator(record_iter, SPLIT_COUNT)):
-    filename = startInputFile + "_group_%i.fasta" % (i + 1)
-    with open(filename, "w") as handle:
+    outputFile = startInputFile + "_group_%i.fasta" % (i + 1)
+    with open(outputFile, "w") as handle:
         count = SeqIO.write(batch, handle, "fasta")
-    print("Wrote %i records to %s" % (count, filename))
-            
-
-# print(count)
+    print("Wrote %i records to %s" % (count, outputFile))

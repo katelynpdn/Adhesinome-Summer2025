@@ -14,7 +14,7 @@ inputFile=$1
 # Split FASTA file into smaller files
 python splitFasta.py "$inputFile"
 
-if !test -d "output/output.json"; then
+if ! test -f "output/output.json"; then
     mkdir output
     touch output/output.json
 fi
