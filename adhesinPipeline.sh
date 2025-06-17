@@ -11,16 +11,18 @@ if [ "$#" -ne 2 ]; then
 fi
 
 proteomeFile=$(readlink -f "$1")
-fileStem="${fileBase%.*}"
-fileDir=$(dirname "$proteomeFile")
-proteomeFile_noX="${fileDir}/${fileStem}_noX.fasta"
+proteomeFile_noX="${proteomeFile}_noX.fasta"
 outputFile=$2
+
+mkdir -p results
+cd scripts
 
 # FungalRV
 python fastaRemoveX.py "$proteomeFile" "$proteomeFile_noX"
 cd ../FungalRV_adhesin_predictor
 echo "Running FungalRV"
 perl run_fungalrv_adhesin_predictor.pl "$proteomeFile_noX" ../results/fungalrv_output y
+rm "$proteomeFile_noX"
 
 # PredGPI
 cd ../predgpi
