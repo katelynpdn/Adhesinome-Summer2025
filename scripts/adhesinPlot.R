@@ -1,5 +1,6 @@
 library(tidyverse)
 library(ComplexUpset)
+library(ggvenn)
 
 args <- commandArgs(trailingOnly = TRUE)
 
@@ -11,7 +12,7 @@ if (length(args) < 2){
 adhesinData <- read.csv(file = args[1])
 
 adhesinData |> 
-  ggplot(aes(x = FungalRV.Score, fill = factor(GPI.anchor))) + 
+  ggplot(aes(x = FungalRV.Score, fill = GPI.anchor)) + 
   geom_density(alpha = 0.5) +
   geom_vline(xintercept = 0.511, linetype = "dashed", 
              color = "red", linewidth = 1) +
@@ -27,14 +28,18 @@ adhesinData |>
        x = "FungalRV Score", y = "Density")
 
 # UpSet Plot
-totalProteins <- nrow(adhesinData)
 
 adhesinData |> 
-  mutate(FungalRV.Positive = (FungalRV.Score > 0.511)) |>
-  upset(intersect = c("FungalRV.Positive", "GPI.anchor"),
+  mutate(FungalRV.Positive = (FungalRV.Score > 0.511), 
+         SignalP.Positive = (Signal.Peptide > 0.5)) |>
+  upset(intersect = c("FungalRV.Positive", "GPI.anchor", "SignalP.Positive"),
        name = "Putative Adhesins",
   )
 
-ggsave(paste(filename = args[2], ".png", sep = ""))
-
+# Venn Diagram
+adhesinData |> 
+  mutate(FungalRV.Positive = (FungalRV.Score > 0.511), 
+         SignalP.Positive = (Signal.Peptide > 0.5),
+         GPI.anchor = as.logical(GPI.anchor)) |> ggvenn()
   
+#ggsave(paste(filename = args[2], ".png", sep = ""))

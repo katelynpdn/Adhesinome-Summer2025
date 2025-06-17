@@ -1,7 +1,7 @@
 #!/bin/bash
 # title: Given proteome, get data from FungalRV, SignalP, PredGPI
 # author: Katelyn Nguyen
-# date: 2025-06-13
+# date: 2025-06-16
 
 set -e
 
@@ -16,24 +16,26 @@ fileDir=$(dirname "$proteomeFile")
 proteomeFile_noX="${fileDir}/${fileStem}_noX.fasta"
 outputFile=$2
 
-mkdir -p results
-
 # FungalRV
 python fastaRemoveX.py "$proteomeFile" "$proteomeFile_noX"
 cd ../FungalRV_adhesin_predictor
+echo "Running FungalRV"
 perl run_fungalrv_adhesin_predictor.pl "$proteomeFile_noX" ../results/fungalrv_output y
 
 # PredGPI
 cd ../predgpi
 export PREDGPI_HOME=$(pwd)
+echo "Running PredGPI"
 python predgpi.py -f "$proteomeFile" -m gff3 -o ../results/predgpi_output
 
 # SignalP
 cd ../scripts
+echo "Running SignalP"
 ./runSignalP.sh "$proteomeFile"
 mv biolib_results/merged_prediction_results.txt ../results/signalP_output
 
 # Combine results
+echo "Combining results"
 cd ../results
 # Remove first 4 lines of fungalrv_output
 tail -n +4 fungalrv_output > tmpfile && mv tmpfile fungalrv_output
