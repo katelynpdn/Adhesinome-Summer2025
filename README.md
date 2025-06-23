@@ -18,7 +18,6 @@ rm ./calc_multiplets
 ln -s bin-linux/calc_multiplets ./calc_multiplets
 rm ./calc_tripep_freq
 ln -s bin-linux/calc_tripep_freq ./calc_tripep_freq
-cd FungalRV_adhesin_predictor
 ```
 
 #### Compile svm_light for Linux
@@ -31,4 +30,4 @@ mv svm_classify ../
 
 ### Command Usage
 
-./adhesinPipeline.sh <inputFile> <outputFile>
+./adhesinPipeline.sh \<inputFile\> \<outputFile\>

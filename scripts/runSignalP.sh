@@ -15,7 +15,7 @@ inputFile=$1
 python splitFasta.py "$inputFile"
 
 if ! test -f "output/output.json"; then
-    mkdir output
+    mkdir -p output
     touch output/output.json
 fi
 

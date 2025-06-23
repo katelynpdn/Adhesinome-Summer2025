@@ -4,8 +4,8 @@ library(ggvenn)
 
 args <- commandArgs(trailingOnly = TRUE)
 
-if (length(args) < 2){
-  print("Usage: Rscript adhesinPlot.R <inputFile> <outputFile>")
+if (length(args) != 1){
+  print("Usage: Rscript adhesinPlot.R <inputFile>")
   stop()
 }
 
@@ -41,5 +41,3 @@ adhesinData |>
   mutate(FungalRV.Positive = (FungalRV.Score > 0.511), 
          SignalP.Positive = (Signal.Peptide > 0.5),
          GPI.anchor = as.logical(GPI.anchor)) |> ggvenn()
-  
-#ggsave(paste(filename = args[2], ".png", sep = ""))

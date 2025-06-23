@@ -6,15 +6,15 @@
 set -e
 
 if [ "$#" -ne 2 ]; then
-    echo "Usage: $0 <inputFile.fasta> <outputFile>"
+    echo "Usage: $0 <inputFile.fasta> <outputName>"
     exit 1
 fi
 
 proteomeFile=$(readlink -f "$1")
 proteomeFile_noX="${proteomeFile}_noX.fasta"
-outputFile=$2
+outputDirectory=$2
 
-mkdir -p results
+mkdir -p "results/$outputDirectory"
 cd scripts
 
 # FungalRV
@@ -38,10 +38,14 @@ mv biolib_results/merged_prediction_results.txt ../results/signalP_output
 
 # Combine results
 echo "-------------Combining results-------------"
-cd ../results
+cd "../results/$outputDirectory"
 # Remove first 4 lines of fungalrv_output
 tail -n +4 fungalrv_output > tmpfile && mv tmpfile fungalrv_output
 # Remove all lines starting with "#" from signalP_output
 grep -v '^#' signalP_output > tmpfile && mv tmpfile signalP_output
-# Parse all output
-python ../scripts/parse_all_output.py fungalrv_output predgpi_output signalP_output "$outputFile"
+# Combine all output into table
+python ../scripts/parse_all_output.py fungalrv_output predgpi_output signalP_output proteinTable.csv
+# Extract sequences satisfying all 3 conditions
+python extractSeq.py proteinTable.csv "$proteomeFile" > finalList.fasta
+
+echo "Results saved to results/$outputDirectory"
