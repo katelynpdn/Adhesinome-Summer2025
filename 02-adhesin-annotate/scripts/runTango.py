@@ -14,5 +14,5 @@ inputFile = sys.argv[1]
 
 # Run Tango on each sequence
 for record in SeqIO.parse(inputFile, "fasta"):
-    subprocess.run(["./tango2_3_1", record.id, "nt='N'", "ct='A'", "ph='7.4'", "te='298'", "io='0.05'", 
-                    "tf='0'", "stab='-10'", "conc='1'", "seq='{}'".format(record.seq)])
+    subprocess.run(["./tango2_3_1", record.id,  "nt=N", "ct=A", "ph=7.4", "te=298", "io=0.05",
+        "tf=0", "stab=-10", "conc=1", f"seq={record.seq}"], check=True, capture_output=True, text=True)
