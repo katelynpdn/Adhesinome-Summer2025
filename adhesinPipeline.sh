@@ -44,7 +44,7 @@ tail -n +4 fungalrv_output > tmpfile && mv tmpfile fungalrv_output
 # Remove all lines starting with "#" from signalP_output
 grep -v '^#' signalP_output > tmpfile && mv tmpfile signalP_output
 # Combine all output into table
-python ../scripts/parse_all_output.py fungalrv_output predgpi_output signalP_output proteinTable.csv
+python ../scripts/parse_all_output.py fungalrv_output predgpi_output signalP_output proteinTable
 # Extract sequences satisfying all 3 conditions
 python extractSeq.py proteinTable.csv "$proteomeFile" > finalList.fasta
 

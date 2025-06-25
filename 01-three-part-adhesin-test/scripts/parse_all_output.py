@@ -9,6 +9,7 @@ import csv
 
 if len(sys.argv) != 5:
     print("Usage: python parse_all_output.py <fungalRV_file> <predGPI_file> <signalP_file> <output_file>")
+    sys.exit(1)
 
 fungalFile = sys.argv[1]
 predGPIFile = sys.argv[2]
@@ -32,14 +33,15 @@ with open(signalPFile, "r") as f:
         proteinID = row[0].split("|")[1]
         signalPdict[proteinID] = row[3]
         
-header = ["Protein ID","FungalRV Score","GPI-anchor", "Signal Peptide"]
+header = ["Protein ID","Protein Name", "FungalRV Score","GPI-anchor", "Signal Peptide"]
 with open(fungalFile, "r") as inputf, open(outputFile, "w") as outf:
     tsvReader = csv.reader(inputf, delimiter="\t")
     csvWriter = csv.writer(outf)
     csvWriter.writerow(header)
     for row in tsvReader:
         proteinID = row[0].split("|")[1]
+        proteinName = row[0].split("|")[2].split()[0]
         isGPI = proteinID in GPIproteins
         signalP = signalPdict.get(proteinID)
-        csvWriter.writerow([f"{proteinID}",f"{row[1]}",f"{isGPI}",f"{signalP}"])
+        csvWriter.writerow([f"{proteinID}",f"{proteinName}",f"{row[1]}",f"{isGPI}",f"{signalP}"])
 

@@ -6,6 +6,7 @@ from Bio import SeqIO
 
 if len(sys.argv) != 2:
     print("Usage: python splitFasta.py <file.fasta>")
+    sys.exit(1)
 
 inputFile = sys.argv[1]
 startInputFile = os.path.splitext(os.path.basename(inputFile))[0]

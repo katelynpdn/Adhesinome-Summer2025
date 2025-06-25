@@ -3,6 +3,7 @@ import sys
 
 if len(sys.argv) != 3:
     print("Usage: python fastaRemoveX.py <inputFile> <outputFile>")
+    sys.exit(1)
 
 inputFile = sys.argv[1]
 outputFile = sys.argv[2]
