@@ -1,4 +1,4 @@
-# title: Prepare sequence file for Tango in the format (Name Cter Nter pH Temp Ionic Sequence)
+# title: Prepare sequence file for Tango in the format (Name Cter Nter pH Temp Ionic Stability Concentration Sequence)
 # author: Katelyn Nguyen
 # date: 2025-06-25
 
@@ -11,6 +11,6 @@ if len(sys.argv) != 2:
 
 inputFile = sys.argv[1]
 
-# Compile sequence file for Tango in the format (Name Cter Nter pH Temp Ionic Sequence)
+# Compile sequence file for Tango in the format (Name Cter Nter pH Temp Ionic Stability Concentration Sequence)
 for record in SeqIO.parse(inputFile, "fasta"):   
-    print(record.id, "N", "N", 7.5, 298, 0.1, record.seq, sep=" ")
+    print(record.id, "N", "N", 7.5, 298, 0.1, -10, 1, record.seq, sep=" ")

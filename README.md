@@ -2,7 +2,11 @@
 
 ## Computational pipeline to extract and analyze putative adhesins from a yeast pathogen proteome
 
-### If Linux system:
+01-three-part-adhesin-test: Run PredGPI, Fungal RV, SignalP, then plot in R
+02-adhesin-annotate: Annotate putative adhesins (Pfam domains (hmmscan), Ser/Thr frequency (EMBOSS), Beta aggregation seq (Tango), Tandem Repeats (XSTREAM))
+See detailed README.md files in 01-three-part-adhesin-test and 02-adhesin-annotate
+
+### If Linux system, do the following to run 01-three-part-adhesin-test:
 
 #### For FungalRV, create links to bin-linux compilations
 
@@ -27,7 +31,3 @@ cd FungalRV_adhesin_predictor/svm_light
 make
 mv svm_classify ../
 ```
-
-### Command Usage
-
-./adhesinPipeline.sh \<inputFile\> \<outputFile\>
