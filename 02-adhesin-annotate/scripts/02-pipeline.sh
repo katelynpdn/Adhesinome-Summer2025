@@ -5,19 +5,20 @@
 
 set -e
 
-if [ "$#" -ne 3 ]; then
-    echo "Usage: $0 <inputFile.fasta> <01_resultsFile> <outputName>"
+if [ "$#" -ne 4 ]; then
+    echo "Usage: $0 <inputFile.fasta> <directory_with_Pfam> <01_resultsFile> <outputName>"
     exit 1
 fi
 
 proteomeFile=$(readlink -f "$1")
-part1File=$(readlink -f "$2")
-outputDirectory="../results/$3"
+pfamDirectory=$(readlink -f "$2")
+part1File=$(readlink -f "$3")
+outputDirectory="../results/$4"
 
 mkdir -p "$outputDirectory"
 
 echo "-------------Running HMMSCAN on Pfam-------------"
-hmmscan --domtblout  "$outputDirectory/hmmscan_domtblout" Pfam-A.hmm "$proteomeFile"
+hmmscan --domtblout  "$outputDirectory/hmmscan_domtblout" "$pfamDirectory/Pfam-A.hmm" "$proteomeFile"
 
 echo "-------------Running EMBOSS freak-------------"
 ./run_freak.sh "$proteomeFile" "$outputDirectory/freak-output"

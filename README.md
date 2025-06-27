@@ -1,9 +1,11 @@
-# SU25-adhesinome
+# Adhesinome Project (Summer 2025)
 
-## Computational pipeline to extract and analyze putative adhesins from a yeast pathogen proteome
+## Computational pipeline to extract and annotate putative adhesins from a yeast pathogen proteome
 
-01-three-part-adhesin-test: Run PredGPI, Fungal RV, SignalP, then plot in R
-02-adhesin-annotate: Annotate putative adhesins (Pfam domains (hmmscan), Ser/Thr frequency (EMBOSS), Beta aggregation seq (Tango), Tandem Repeats (XSTREAM))
+**01-three-part-adhesin-test**: Run PredGPI, Fungal RV, SignalP, then plot in R
+
+**02-adhesin-annotate**: Annotate putative adhesins (Pfam domains (hmmscan), Ser/Thr frequency (EMBOSS), Beta aggregation seq (Tango), Tandem Repeats (XSTREAM))
+
 See detailed README.md files in 01-three-part-adhesin-test and 02-adhesin-annotate
 
 ### If Linux system, do the following to run 01-three-part-adhesin-test:

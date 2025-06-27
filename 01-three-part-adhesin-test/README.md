@@ -22,7 +22,7 @@ File tree (for files of note)
 │   ├── calc_tripep_freq -> bin-mac/calc_tripep_freq
 │   ├── calc_tripep_freq.c
 │   ├── run_fungalrv_adhesin_predictor.pl       # Modified to accept file path as input
-│   ├── svm_classify
+│   ├── svm_classify        # Required dependency
 │   ├── svm_light           # Compile the following to get svm_classify (Instructions in Adhesinome-Summer2025/README.md)
     └── ...
 ├── README.md               # This is where you are
@@ -30,7 +30,7 @@ File tree (for files of note)
 ├── data                    # Folder to put input data (proteome)
 ├── plots
 │   └── adhesinPlot.R       # R script to generate plots of results
-├── predgpi
+├── predgpi                 # Modified PredGPI to remove the error: `np.int` was a deprecated alias for the builtin `int`
 │   ├── predgpi.py
 │   └── ...
 ├── results                 # Folder to put results
