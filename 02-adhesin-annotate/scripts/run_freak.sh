@@ -5,7 +5,7 @@
 set -e
 
 if [ "$#" -ne 2 ]; then
-    echo "Usage: $0 <file.fasta> <outputName>"
+    echo "Usage: $0 <file.fasta> <outputDirectory>"
     exit 1
 fi
 
@@ -13,14 +13,14 @@ inputFile=$1
 outputDirectory=$2
 windowSize=50
 
-mkdir -p "../results/$outputDirectory"
+mkdir -p "$outputDirectory"
 
 # Ser/Thr
-freak -filter -letters "ST" -window $windowSize -step 10 $inputFile > ../results/$outputDirectory/ST_freq.freak
-python format_freak_output.py ../results/$outputDirectory/ST_freq.freak
+freak -filter -letters "ST" -window $windowSize -step 10 $inputFile > $outputDirectory/ST_freq.freak
+python format_freak_output.py $outputDirectory/ST_freq.freak
 # Ser
-freak -filter -letters "S" -window $windowSize -step 10 $inputFile > ../results/$outputDirectory/S_freq.freak
-python format_freak_output.py ../results/$outputDirectory/S_freq.freak
+freak -filter -letters "S" -window $windowSize -step 10 $inputFile > $outputDirectory/S_freq.freak
+python format_freak_output.py $outputDirectory/S_freq.freak
 # Thr
-freak -filter -letters "T" -window $windowSize -step 10 $inputFile > ../results/$outputDirectory/T_freq.freak
-python format_freak_output.py ../results/$outputDirectory/T_freq.freak
+freak -filter -letters "T" -window $windowSize -step 10 $inputFile > $outputDirectory/T_freq.freak
+python format_freak_output.py $outputDirectory/T_freq.freak

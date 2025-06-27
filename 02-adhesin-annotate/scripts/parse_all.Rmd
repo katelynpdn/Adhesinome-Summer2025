@@ -1,0 +1,293 @@
+---
+title: "Parse all annotation data into table"
+author: Katelyn Nguyen (+Sections from Rachel Smoak, Bin He)
+output:
+    pdf_document: default
+params:
+    args: ''
+---
+
+```{=html}
+<!--
+To run this R Markdown from the command line with arguments:
+
+Rscript -e "rmarkdown::render('parse_all.Rmd', params = list(args = '<output_directory> <01_output_file>'))"
+-->
+```
+
+Some sections adapted from Rachel Smoak, Bin He's work in C037-Cand-auris-adhesin/01-global-adhesin-prediction /main-analysis.Rmd
+
+## Parse hmmscan --domtblout output
+
+```{r}
+library(tidyverse)
+library(readr)
+library(cowplot)
+args <- strsplit(params$args, " ")[[1]]
+
+if (length(args) != 2){
+  print("Usage: <output_directory> <01_output_file>")
+  stop()
+}
+
+hmmscan_domtblout_file = paste0(args[1], "/hmmscan_domtblout")
+three_part_test_file = args[2]
+freak_output_directory = paste0(args[1], "/freak-output")
+tango_output_directory = paste0(args[1], "/tango-output")
+xstream_output_directory = paste0(args[1], "/tandem-repeats")
+
+hmm.names <- c("target_name", "target_accession", "target_length", "query_name", "query_accession", "query_length", "seq_evalue", "seq_score", "seq_bias", "domain_num", "num_target_domains", "c_evalue", "i_evalue", "domain_score", "domain_bias", "hmm_from", "hmm_to", "ali_from", "ali_to", "env_from", "env_to", "accuracy")
+hmmscan_df <- read_table(file = hmmscan_domtblout_file, col_names = hmm.names, col_types = "cciccidddiiddddiiiiiid", skip = 3)
+```
+
+### Filter out anything that doesn't satisfy inclusion threshold (seq_evalue \< 0.01 and c-evalue \< 0.01)
+
+```{r}
+filtered_hmm_df <- hmmscan_df %>% 
+  filter(seq_evalue < 0.01 & c_evalue < 0.01) %>% 
+  group_by(query_name) %>%
+  # Extract protein name
+  mutate(query_name = unlist(strsplit(query_name, split="\\|"))[[2]]) %>%
+  # Collapse into list of pfam domains for each protein
+  reframe(pfam_domains = paste0(target_name, " (", env_from, "-", env_to,  ")", collapse = ", "), 
+          unique_domains = paste(unique(target_name), collapse = ", ")) %>%
+  rename("Protein ID" = query_name)
+```
+
+## Parse output from 01-three-part-adhesin-test
+
+```{r}
+part_one_df <- read_csv(file = three_part_test_file)
+# Sort
+part_one_df <- part_one_df[order(-part_one_df$"FungalRV Score",
+                                 -part_one_df$"Signal Peptide", -part_one_df$"GPI-anchor"), ]
+
+# Table 1: All 3 criteria satisfied (FungalRV, PredGPI, SignalP)
+
+df_all <- part_one_df[part_one_df$"FungalRV Score" > 0.511
+                      & part_one_df$"Signal Peptide" > 0.5 & part_one_df$"GPI-anchor" == TRUE, ]
+
+part_one_df <- part_one_df %\>% mutate(isAdhesin = part_one_df$`Protein ID` %in% df_all$"Protein ID")
+
+# Table 2: The rest
+
+df_rest <- part_one_df[!(part_one_df$"FungalRV Score" > 0.511
+                & part_one_df$"Signal Peptide" > 0.5 & part_one_df$"GPI-anchor" == TRUE), ]
+```
+
+## Combine hmmscan, 01-three-part-test output
+
+```{r}
+# Merge hmmscan table and 01_output table
+all_hmm_df <- merge(filtered_hmm_df, df_all[, c("Protein ID", "FungalRV Score")], by = "Protein ID", all.y = TRUE)
+# Sort by FungalRV score
+all_hmm_df <- all_hmm_df[order(-all_hmm_df$"FungalRV Score"), ]
+```
+
+## Read Ser/Thr frequencies
+
+```{r}
+# (1) Panproteome-wide: Maximum frequency of Ser/Thr, Ser, Thr in 100aa window
+ST.freq <- read_tsv(paste0(freak_output_directory,"/ST_freq_freak.out"), col_types = "cid")
+S.freq <- read_tsv(paste0(freak_output_directory,"/S_freq_freak.out"), col_types = "cid")
+T.freq <- read_tsv(paste0(freak_output_directory,"/T_freq_freak.out"), col_types = "cid")
+ST.window <- bind_rows("ST" = ST.freq, "S" = S.freq, "T" = T.freq, .id = "residue") %>% 
+  group_by(id, residue) %>% 
+  summarize(max = max(freq))
+rm(list = c("ST.freq", "S.freq", "T.freq"))
+
+ST.window %>% 
+  left_join(select(part_one_df, id = "Protein Name", isAdhesin), by = "id") %>% 
+  mutate(residue = factor(residue, levels = c("ST", "S", "T"), labels = c("Ser/Thr", "Ser", "Thr")),
+         `Adhesin` = ifelse(isAdhesin, "Yes", "No")) %>% 
+  ggplot(aes(x = max)) + geom_histogram(binwidth = 0.02) + 
+  xlab("Max frequency of Ser/Thr in 100 amino acid window") + scale_y_continuous(position = "right") +
+  facet_grid(`Adhesin` ~ residue, scales = "free_y", labeller = "label_both", switch = "y") +
+  theme_cowplot() + panel_border()
+
+# (2) Panproteome-wide: Ser, Thr frequencies over whole protein
+ST.protein <- read_tsv(paste0(freak_output_directory,"/ST_freq_perProtein"), col_types = cols())
+# Extract protein ID, protein name
+ST.protein <- ST.protein %>% 
+  separate(ID, into = c("tmp", "ID", "Name"), sep = "\\|") %>%
+  select(-tmp)
+
+ST.protein %>% 
+  left_join(select(part_one_df, `ID` = `Protein ID`, isAdhesin), by = "ID") %>% 
+  mutate(`Ser/Thr` = (Ser+Thr)/length, Ser = Ser/length, Thr = Thr/length) %>% 
+  pivot_longer(cols = c(`Ser/Thr`, Ser, Thr), names_to = "residue", values_to = "value") %>% 
+  mutate(residue = factor(residue, levels = c("Ser/Thr", "Ser", "Thr")),
+         `Adhesin` = ifelse(isAdhesin, "Yes", "No")) %>% 
+  ggplot(aes(x = value)) + geom_histogram(binwidth = 0.02) + 
+  xlab("Frequency of Ser/Thr in the whole protein") + scale_y_continuous(position = "right") +
+  facet_grid(`Adhesin` ~ residue, scales = "free_y", labeller = "label_both", switch = "y") +
+  theme_cowplot() + panel_border()
+
+# (3) Merge with all_hmm_df
+# Combine Maximum and Protein-wide Frequencies
+tmp <- ST.protein %>% 
+  mutate(ST.prot = round((Ser+Thr)/length, 3)) %>% 
+  select(ID, Name, ST.prot) %>% 
+  left_join(ST.window %>% filter(residue == "ST") %>% 
+  select(Name = id, ST.window.max = max), by = "Name") %>% 
+  # for proteins shorter than 100 a.a., the sliding window estimate would be NA. replace it with whole protein estimate in ST.protein
+  mutate(ST.window.max = round(coalesce(ST.window.max, ST.prot),3)) %>%
+  rename("S/T Frequency" = ST.prot, "Max window S/T frequency" = ST.window.max)
+
+# Add Maximum, Protein-wide Frequencies to all_hmm_df
+all_hmm_df <- all_hmm_df %>% 
+  rename(ID = "Protein ID") %>%
+  left_join(tmp, by = "ID") %>%
+  relocate(Name, .after = 1)
+```
+
+## Read TANGO output
+Average B-Aggregation per protein
+```{r}
+# Read in Average Aggregation per protein
+tango_df <- read_tsv(paste0(tango_output_directory,"/perSequence_aggregation.txt")
+                     , col_types = cols())
+# Extract protein ID, protein name
+tango_df <- tango_df %>% 
+  separate(Sequence, into = c("tmp", "ID", "Name"), sep = "\\|") %>%
+  select(-tmp)
+
+# Merge with all_hmm_df
+all_hmm_df <- all_hmm_df %>% 
+  left_join(tango_df %>% 
+              select(ID, "Average B-aggregation per residue" =  Aggregation)
+            , by = "ID")
+```
+
+Using Bin's tango extraction functions
+
+```{r extract_tango_info}
+extract_tango <- function(tango_output, agg_threshold = 5, required_in_serial = 5) {
+    require(tidyverse)
+    tmp <- read_tsv(file = tango_output, col_types = "icddddd") %>% 
+        # a boolean vector for residues above threshold
+        mutate(pass = Aggregation > agg_threshold)
+    pass.rle <- rle(tmp$pass) # this creates a run length encoding that will be useful for identifying the sub-sequences in a run longer than certain length
+    # --- Explanation ---
+    # this rle object is at the core of this function
+    # an example of the rle looks like
+    #   lengths: int[1:10] 5 19 20 8 1 5 19 6 181 18
+    #   values: logi[1:10] F T  F  T F T F  T F   T
+    #   note that by definition the values will always be T/F interdigited
+    # our goal is to identify the sub-sequences that is defined as a stretch of 
+    # n consecutive positions with a score greater than the cutoff and record the
+    # sub-sequence, its length, start and end position, 90% quantile of the score
+    # --- End of explanation ---
+    # 1. assigns a unique id for each run of events
+    tmp$group <- rep(1:length(pass.rle$lengths), times = pass.rle$lengths)
+    # # 2. extract the subsequences
+    agg.seq <- tmp %>%
+        dplyr::filter(pass) %>% # drop residues not predicted to have aggregation potential
+        group_by(group) %>% # cluster by the runs
+        summarise(seq = paste0(aa, collapse = ""),
+                  start = min(res), end = max(res), length = n(),
+                  median = median(Aggregation),
+                  q90 = quantile(Aggregation, probs = 0.9),
+                  ivt = sum(aa %in% c("I","V","T")) / length(aa),
+                  .groups = "drop") %>%
+        mutate(interval = start - dplyr::lag(end) - 1) %>%
+        dplyr::filter(length >= required_in_serial) %>%
+        select(-group)
+    return(agg.seq)
+}
+```
+
+Apply to individual proteome
+
+```{r tango_extract, eval=FALSE, warning=FALSE}
+tango.output.files <- list.files(path = tango_output_directory, pattern = "^tr\\|.*\\.txt(\\.gz)?$", full.names = TRUE)
+# the read_csv() function used in the custom function can automatically decompress gzipped files
+tango.res <- lapply(tango.output.files, extract_tango)
+names(tango.res) <- gsub(".txt|.txt.gz", "", basename(tango.output.files))
+# to add species information
+# seqInfo <- read_tsv("raw-output/XP_028889033_homologs.tsv", comment = "#", col_types = c("ccci"))
+tango.res.df <- bind_rows(tango.res, .id = "id")
+# Extract protein ID, protein name
+tango.res.df <- tango.res.df %>% 
+  separate(id, into = c("tmp", "ID", "Name"), sep = "\\|") %>%
+  select(-tmp)
+# tango.res.df <- bind_rows(tango.res, .id = "id") %>% 
+#   left_join(select(seqInfo, -length), by = c("id" = "id"))
+# # save the tango output
+# write_tsv(tango.res.df, "tango_summary_table.tsv.gz")
+# # mutate(species = str_split(id, "_(?!.*_)", simplify = TRUE)[,2]) 
+# # extract the species names
+# # credit: https://stackoverflow.com/questions/20454768/how-to-split-a-string-from-right-to-left-like-pythons-rsplit
+# # the split pattern is equivalent to the rsplit() function in python
+
+```
+
+Add B-aggregation sequences (and medScore and IVT) to all_hmm_df
+```{r}
+# ivt_30th <- quantile(tango.res.df$ivt, 0.3)
+# median_30th <- quantile(tango.res.df$median, 0.3)
+
+tmp <- tango.res.df %>%
+  select(ID, seq, median, ivt) %>%
+  group_by(ID) %>%
+  # Filter out sequences with low median (< 30th percentile) and low IVT (< 30th percentile) scores
+  # filter(ivt >= ivt_30th | median >= median_30th) %>%
+  summarize("B-agg seq count" = n(), "B-agg sequences" = paste(sort(seq), collapse = ", "), 
+            medScore = round(mean(median),1),
+            IVT = round(mean(ivt),2),)
+
+all_hmm_df <- all_hmm_df %>% 
+  left_join(tmp %>% 
+              select(ID,  "B-agg sequences", "B-agg seq count")
+            , by = "ID")
+```
+
+Top 20 TANGO hits ranked by number of occurrences in all proteins, restricted to the strong hits with a median score \>= 30%.
+```{r unique_motifs}
+# tango.res.df1 <- tango.res.df %>% left_join(all_hmm_df %>% select(ID), by = "ID")
+
+# find unique motifs and count the number of proteins and strains represented
+motif.summary <- tango.res.df %>% 
+  # left_join(select(all_hmm_df, id = ID, isHIL)) %>% 
+  left_join(select(all_hmm_df, ID)) %>% 
+  group_by(seq) %>% 
+  summarize(n = n(),
+            n.prot = n_distinct(ID), 
+            #n.strains = n_distinct(strain),
+            medScore = round(mean(median),1),
+            IVT = round(mean(ivt),2),
+            avg.intv = round(mean(interval, na.rm = T),1), 
+            mad.intv = round(mad(interval, na.rm = T),1),
+            .groups = "drop") %>% 
+  arrange(desc(n))
+motif.summary %>% 
+  filter(round(medScore,0) >= 30) %>% 
+  head(20)
+```
+
+## Read XSTREAM output
+
+```{r}
+repeats_df <- read_tsv(paste0(xstream_output_directory, "/XSTREAM_proteins_i0.7_g3_m5_L15_chart.xls"), col_types = cols())
+# Extract protein ID, protein name
+repeats_df <- repeats_df %>% 
+  separate(identifier, into = c("tmp", "ID", "Name"), sep = "\\|") %>%
+  select(-tmp)
+
+# Calculate per sequence repeat content and add to all_hmm_df
+tmp <- repeats_df %>% 
+  mutate(len = end - start + 1) %>% 
+  group_by(ID) %>% 
+  summarize(perc = round(sum(len/`seq length`),3)) %>% 
+  rename("TR Percentage" = perc)
+
+all_hmm_df <- all_hmm_df %>% 
+  left_join(tmp, by = "ID") %>% 
+  replace_na(list("TR Percentage" = 0))
+```
+Save final table to "../results/annotations_table.csv"
+```{r}
+all_hmm_df <- all_hmm_df %>% relocate("FungalRV Score", .after = "Name")
+write.csv(all_hmm_df, file = "../results/annotations_table.csv")
+print("Annotated proteins table saved to ../results/annotations_table.csv")
+```
