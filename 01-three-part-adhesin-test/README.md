@@ -4,7 +4,7 @@
 
 ./adhesinPipeline.sh \<inputFile\> \<outputFile\>
 
-File tree (for files of note)
+File tree
 
 ```
 ├── FungalRV_adhesin_predictor      # From binhe-lab/2023-adhesin-parallel-evolution (one file modified)

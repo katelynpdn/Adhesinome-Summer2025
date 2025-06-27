@@ -24,8 +24,8 @@ fi
 python prepareTango.py $inputFile > perSequence.txt
 
 # Run Tango (y: Yes to prediction per residue)
-echo -e "y\nperSequence.txt" | ./tango2_3_1 > command_line_output.txt
+echo -e "y\nperSequence.txt" | ./tango2_3_1
 rm perSequence.txt
 
 mkdir -p "$outputDirectory"
-mv tr\|*.txt perSequence_aggregation.txt command_line_output.txt "$outputDirectory"
+mv tr\|*.txt perSequence_aggregation.txt "$outputDirectory"
