@@ -24,7 +24,7 @@ library(dplyr)
 library(ggplot2)
 library(readr)
 
-params <- list(args = "../results/aurisOther ../../01-three-part-adhesin-test/results/proteinTable.csv")
+params <- list(args = "../results/aurisComplete ../../01-three-part-adhesin-test/results/proteinTable.csv")
 
 args <- strsplit(params$args, " ")[[1]]
 
@@ -39,7 +39,6 @@ freak_output_directory = paste0(args[1], "/freak-output")
 ser_thr_output = paste0(args[1], "/ST_freq_perProtein")
 tango_output_directory = paste0(args[1], "/tango-output")
 xstream_output_directory = paste0(args[1], "/tandem-repeats")
-output_table = paste0(args[1], "/annotations_table.csv")
 
 hmm.names <- c("target_name", "target_accession", "target_length", "query_name", "query_accession", "query_length", "seq_evalue", "seq_score", "seq_bias", "domain_num", "num_target_domains", "c_evalue", "i_evalue", "domain_score", "domain_bias", "hmm_from", "hmm_to", "ali_from", "ali_to", "env_from", "env_to", "accuracy")
 hmmscan_df <- read_table(file = hmmscan_domtblout_file, col_names = hmm.names, col_types = "cciccidddiiddddiiiiiid", skip = 3)
@@ -50,41 +49,46 @@ hmmscan_df <- read_table(file = hmmscan_domtblout_file, col_names = hmm.names, c
 ```{r}
 filtered_hmm_df <- hmmscan_df %>% 
   filter(seq_evalue < 0.01 & c_evalue < 0.01) %>% 
-  group_by(query_name) %>%
   # Extract protein name
-  mutate(query_name = unlist(strsplit(query_name, split="\\|"))[[2]]) %>%
+  separate(query_name, into = c("tmp", "ID", "Name"), sep = "\\|") %>%
+  group_by(ID) %>%
   # Collapse into list of pfam domains for each protein
   reframe(pfam_domains = paste0(target_name, " (", env_from, "-", env_to,  ")", collapse = ", "), 
-          unique_domains = paste(unique(target_name), collapse = ", ")) %>%
-  rename("Protein ID" = query_name)
+          unique_domains = paste(unique(target_name), collapse = ", "))
 ```
 
 ## Parse output from 01-three-part-adhesin-test
 
 ```{r}
 part_one_df <- read_csv(file = three_part_test_file)
+part_one_df <- part_one_df %>% rename(ID = `Protein ID`)
+
 # Sort
 part_one_df <- part_one_df[order(-part_one_df$"FungalRV Score",
-                                 -part_one_df$"Signal Peptide", -part_one_df$"GPI-anchor"), ]
+                                 -part_one_df$"Signal Peptide",
+                                 -as.numeric(part_one_df$"GPI-anchor")), ]
 
-# Table 1: All 3 criteria satisfied (FungalRV, PredGPI, SignalP)
-
-# df_all <- part_one_df[part_one_df$"FungalRV Score" > 0.511
-#                       & part_one_df$"Signal Peptide" > 0.5 & part_one_df$"GPI-anchor" == TRUE, ]
-# 
-# part_one_df <- part_one_df %>% mutate(isAdhesin = part_one_df$`Protein ID` %in% df_all$"Protein ID")
-# 
-# # Table 2: The rest
-# 
-# df_rest <- part_one_df[!(part_one_df$"FungalRV Score" > 0.511
-#                 & part_one_df$"Signal Peptide" > 0.5 & part_one_df$"GPI-anchor" == TRUE), ]
+# Add failed_tests column to signify which of the 3 tests failed
+part_one_df <- part_one_df %>%
+  mutate(
+    failed_tests = paste(
+      ifelse(`FungalRV Score` <= 0.511, "FungalRV", ""),
+      ifelse(`Signal Peptide` <= 0.5, "SignalP", ""),
+      ifelse(`GPI-anchor` != TRUE, "PredGPI", ""),
+      sep = ", ")
+  ) %>%
+  mutate(
+    failed_tests = gsub(", ,", ",", failed_tests),
+    failed_tests = gsub("^, |, , |, $", "", failed_tests)
+  )
 ```
 
 ## Combine hmmscan, 01-three-part-test output
 
 ```{r}
 # Merge hmmscan table and 01_output table
-all_hmm_df <- merge(filtered_hmm_df, part_one_df[, c("Protein ID", "FungalRV Score")], by = "Protein ID", all.y = TRUE)
+all_hmm_df <- data.frame()
+all_hmm_df <- merge(filtered_hmm_df, part_one_df[, c("ID", "FungalRV Score", "failed_tests")], by = "ID", all.y = TRUE)
 # Sort by FungalRV score
 all_hmm_df <- all_hmm_df[order(-all_hmm_df$"FungalRV Score"), ]
 ```
@@ -102,12 +106,12 @@ ST.window <- bind_rows("ST" = ST.freq, "S" = S.freq, "T" = T.freq, .id = "residu
 rm(list = c("ST.freq", "S.freq", "T.freq"))
 
 ST.window %>% 
-  left_join(select(part_one_df, id = "Protein Name", isAdhesin), by = "id") %>% 
+  left_join(select(part_one_df, id = "Protein Name", failed_tests), by = "id") %>% 
   mutate(residue = factor(residue, levels = c("ST", "S", "T"), labels = c("Ser/Thr", "Ser", "Thr")),
-         `Adhesin` = ifelse(isAdhesin, "Yes", "No")) %>% 
+         `Adhesin` = ifelse(failed_tests == "", "Yes", "No")) %>% 
   ggplot(aes(x = max)) + geom_histogram(binwidth = 0.02) + 
   xlab("Max frequency of Ser/Thr in 100 amino acid window") + scale_y_continuous(position = "right") +
-  facet_grid(`Adhesin` ~ residue, scales = "free_y", labeller = "label_both", switch = "y") + + theme_minimal(base_size = 12) +
+  facet_grid(`Adhesin` ~ residue, scales = "free_y", labeller = "label_both", switch = "y") + theme_minimal(base_size = 12) +
   theme(
     strip.placement = "outside",
     strip.background = element_blank(),
@@ -123,14 +127,14 @@ ST.protein <- ST.protein %>%
   select(-tmp)
 
 ST.protein %>% 
-  left_join(select(part_one_df, `ID` = `Protein ID`, isAdhesin), by = "ID") %>% 
+  left_join(select(part_one_df, `ID`, failed_tests), by = "ID") %>% 
   mutate(`Ser/Thr` = (Ser+Thr)/length, Ser = Ser/length, Thr = Thr/length) %>% 
   pivot_longer(cols = c(`Ser/Thr`, Ser, Thr), names_to = "residue", values_to = "value") %>% 
   mutate(residue = factor(residue, levels = c("Ser/Thr", "Ser", "Thr")),
-         `Adhesin` = ifelse(isAdhesin, "Yes", "No")) %>% 
+         `Passed Tests` = ifelse(failed_tests == "", "Yes", "No")) %>% 
   ggplot(aes(x = value)) + geom_histogram(binwidth = 0.02) + 
   xlab("Frequency of Ser/Thr over each protein") + scale_y_continuous(position = "right") +
-  facet_grid(`Adhesin` ~ residue, scales = "free_y", labeller = "label_both", switch = "y") + theme_minimal(base_size = 12) +
+  facet_grid(`Passed Tests` ~ residue, scales = "free_y", labeller = "label_both", switch = "y") + theme_minimal(base_size = 12) +
   theme(
     strip.placement = "outside",
     strip.background = element_blank(),
@@ -140,18 +144,17 @@ ST.protein %>%
 
 # (3) Merge with all_hmm_df
 # Combine Maximum and Protein-wide Frequencies
-tmp <- ST.protein %>% 
-  mutate(ST.prot = round((Ser+Thr)/length, 3)) %>% 
-  select(ID, Name, ST.prot) %>% 
-  left_join(ST.window %>% filter(residue == "ST") %>% 
-  select(Name = id, ST.window.max = max), by = "Name") %>% 
+tmp <- ST.protein %>%
+  mutate(ST.prot = round((Ser+Thr)/length, 3)) %>%
+  select(ID, Name, ST.prot) %>%
+  left_join(ST.window %>% filter(residue == "ST") %>%
+  select(Name = id, ST.window.max = max), by = "Name") %>%
   # for proteins shorter than 100 a.a., the sliding window estimate would be NA. replace it with whole protein estimate in ST.protein
   mutate(ST.window.max = round(coalesce(ST.window.max, ST.prot),3)) %>%
   rename("S/T Frequency" = ST.prot, "Max window S/T frequency" = ST.window.max)
 
 # Add Maximum, Protein-wide Frequencies to all_hmm_df
-all_hmm_df <- all_hmm_df %>% 
-  rename(ID = "Protein ID") %>%
+all_hmm_df <- all_hmm_df %>%
   left_join(tmp, by = "ID") %>%
   relocate(Name, .after = 1)
 ```
@@ -226,19 +229,10 @@ tango.res.df <- bind_rows(tango.res, .id = "id")
 tango.res.df <- tango.res.df %>% 
   separate(id, into = c("tmp", "ID", "Name"), sep = "\\|") %>%
   select(-tmp)
-# tango.res.df <- bind_rows(tango.res, .id = "id") %>% 
-#   left_join(select(seqInfo, -length), by = c("id" = "id"))
-# # save the tango output
-# write_tsv(tango.res.df, "tango_summary_table.tsv.gz")
-# # mutate(species = str_split(id, "_(?!.*_)", simplify = TRUE)[,2]) 
-# # extract the species names
-# # credit: https://stackoverflow.com/questions/20454768/how-to-split-a-string-from-right-to-left-like-pythons-rsplit
-# # the split pattern is equivalent to the rsplit() function in python
-
 ```
 
 Add B-aggregation sequences (and medScore and IVT) to all_hmm_df
-```{r}
+```{r merge_tango}
 # ivt_30th <- quantile(tango.res.df$ivt, 0.3)
 # median_30th <- quantile(tango.res.df$median, 0.3)
 
@@ -255,6 +249,32 @@ all_hmm_df <- all_hmm_df %>%
   left_join(tmp %>% 
               select(ID,  "B-agg sequences", "B-agg seq count")
             , by = "ID")
+```
+
+```{r graph_beta_agg}
+# Graph beta-aggregation seq count / aggregation per residue
+all_hmm_df %>%
+  ggplot(aes(x = (failed_tests == ""), y = `B-agg seq count`)) + 
+  geom_violin() + 
+  scale_x_discrete(labels = c("Failed", "Passed All Tests")) +
+  theme_minimal(base_size = 12) +
+  theme(
+    strip.placement = "outside",
+    strip.background = element_blank(),
+    panel.border = element_rect(color = "black", fill = NA),
+    panel.spacing = unit(1, "lines")
+  )
+
+all_hmm_df %>%
+  ggplot(aes(x = (failed_tests == ""), y = `Average B-aggregation per residue`)) + geom_violin() + 
+  scale_x_discrete(labels = c("Failed", "Passed All Tests")) +
+  theme_minimal(base_size = 12) +
+  theme(
+    strip.placement = "outside",
+    strip.background = element_blank(),
+    panel.border = element_rect(color = "black", fill = NA),
+    panel.spacing = unit(1, "lines")
+  )
 ```
 
 Top 20 TANGO hits ranked by number of occurrences in all proteins, restricted to the strong hits with a median score \>= 30%.
@@ -289,7 +309,7 @@ repeats_df <- repeats_df %>%
   separate(identifier, into = c("tmp", "ID", "Name"), sep = "\\|") %>%
   select(-tmp)
 
-# Calculate per sequence repeat content and add to all_hmm_df
+# Calculate per sequence repeat percentage and add to all_hmm_df
 tmp <- repeats_df %>% 
   mutate(len = end - start + 1) %>% 
   group_by(ID) %>% 
@@ -299,13 +319,43 @@ tmp <- repeats_df %>%
 all_hmm_df <- all_hmm_df %>% 
   left_join(tmp, by = "ID") %>% 
   replace_na(list("TR Percentage" = 0))
+
+# Graph TR Percentage
+all_hmm_df %>%
+  ggplot(aes(x = (failed_tests == ""), y = `TR Percentage`)) + geom_violin() + 
+  scale_x_discrete(labels = c("Failed", "Passed All Tests")) +
+  theme_minimal(base_size = 12) +
+  theme(
+    strip.placement = "outside",
+    strip.background = element_blank(),
+    panel.border = element_rect(color = "black", fill = NA),
+    panel.spacing = unit(1, "lines")
+  )
 ```
-Save final table to "../results/annotations_table.csv"
+Parse and Save final tables
 ```{r}
-# # Drop any NA name columns (if you ran the annotation programs on a subset of the proteome)
-# all_hmm_df <- all_hmm_df[!is.na(all_hmm_df$"Name"), ]
-# rownames(all_hmm_df) <- NULL
-all_hmm_df <- all_hmm_df %>% relocate("FungalRV Score", .after = "Name")
-write.csv(all_hmm_df, file = output_table)
-print(paste0("Annotated proteins table saved to ", output_table))
+all_hmm_df <- all_hmm_df %>% 
+  relocate(`FungalRV Score`, .after = `Name`) %>%
+  relocate(`failed_tests`, .after = `FungalRV Score`)
+
+# Split into Three (passing three conditions), Two (passing two conditions), and One (passing at least one condition)
+
+# Table 1: All 3 criteria satisfied (FungalRV, PredGPI, SignalP)
+df_three <- all_hmm_df[all_hmm_df$failed_tests == "", ]
+rownames(df_all) <- NULL
+
+# Table 2: Two criteria satisfied (1 test failed)
+df_two <- all_hmm_df[sapply(strsplit(all_hmm_df$failed_tests, split=","), length) == 1, ]
+rownames(df_two) <- NULL
+
+# Table 3: One criteria satisfied (2 tests failed)
+df_one <- all_hmm_df[sapply(strsplit(all_hmm_df$failed_tests, split=","), length) == 2, ]
+rownames(df_one) <- NULL
+
+write.csv(df_three, file = paste0(args[1], "/df_three.csv"))
+print("Annotated proteins table saved to df_three.csv")
+write.csv(df_two, file = paste0(args[1],"/df_two.csv"))
+print("Annotated proteins table saved to df_two.csv")
+write.csv(df_one, file = paste0(args[1],"/df_one.csv"))
+print("Annotated proteins table saved to df_one.csv")
 ```
