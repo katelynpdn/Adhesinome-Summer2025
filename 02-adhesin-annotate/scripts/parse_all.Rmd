@@ -23,7 +23,6 @@ Some sections adapted from Rachel Smoak, Bin He's work in C037-Cand-auris-adhesi
 library(dplyr)
 library(ggplot2)
 library(readr)
-library(cowplot)
 
 params <- list(args = "../results/aurisOther ../../01-three-part-adhesin-test/results/proteinTable.csv")
 
@@ -108,8 +107,13 @@ ST.window %>%
          `Adhesin` = ifelse(isAdhesin, "Yes", "No")) %>% 
   ggplot(aes(x = max)) + geom_histogram(binwidth = 0.02) + 
   xlab("Max frequency of Ser/Thr in 100 amino acid window") + scale_y_continuous(position = "right") +
-  facet_grid(`Adhesin` ~ residue, scales = "free_y", labeller = "label_both", switch = "y") +
-  theme_cowplot() + panel_border()
+  facet_grid(`Adhesin` ~ residue, scales = "free_y", labeller = "label_both", switch = "y") + + theme_minimal(base_size = 12) +
+  theme(
+    strip.placement = "outside",
+    strip.background = element_blank(),
+    panel.border = element_rect(color = "black", fill = NA),
+    panel.spacing = unit(1, "lines")
+  )
 
 # (2) Panproteome-wide: Ser, Thr frequencies over whole protein
 ST.protein <- read_tsv(paste0(ser_thr_output, col_types = cols()))
@@ -126,8 +130,13 @@ ST.protein %>%
          `Adhesin` = ifelse(isAdhesin, "Yes", "No")) %>% 
   ggplot(aes(x = value)) + geom_histogram(binwidth = 0.02) + 
   xlab("Frequency of Ser/Thr over each protein") + scale_y_continuous(position = "right") +
-  facet_grid(`Adhesin` ~ residue, scales = "free_y", labeller = "label_both", switch = "y") +
-  theme_cowplot() + panel_border()
+  facet_grid(`Adhesin` ~ residue, scales = "free_y", labeller = "label_both", switch = "y") + theme_minimal(base_size = 12) +
+  theme(
+    strip.placement = "outside",
+    strip.background = element_blank(),
+    panel.border = element_rect(color = "black", fill = NA),
+    panel.spacing = unit(1, "lines")
+  )
 
 # (3) Merge with all_hmm_df
 # Combine Maximum and Protein-wide Frequencies
