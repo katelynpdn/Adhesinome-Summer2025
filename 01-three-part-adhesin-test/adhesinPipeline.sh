@@ -45,7 +45,7 @@ tail -n +4 fungalrv_output > tmpfile && mv tmpfile fungalrv_output
 grep -v '^#' signalP_output > tmpfile && mv tmpfile signalP_output
 # Combine all output into table
 python ../scripts/parse_all_output.py fungalrv_output predgpi_output signalP_output proteinTable
-# Extract sequences satisfying all 3 conditions
-python extractSeq.py proteinTable.csv "$proteomeFile" > finalList.fasta
+# Extract sequences satisfying all 3 conditions and satisfying at least 1 condition into ../results/seqList_all and ../results/seqList_other
+python extractSeq.py proteinTable.csv "$proteomeFile"
 
 echo "Results saved to results/$outputDirectory"
