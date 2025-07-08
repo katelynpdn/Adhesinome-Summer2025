@@ -30,7 +30,7 @@ vim ~/.bashrc
 source ~/.bashrc
 ```
 
-Note: To resolve the "libnucleus.so.6: cannot open shared object file: No such file or directory" and "ACD file not opened" errors on Argon, I had to run:
+Note: To resolve the "libnucleus.so.6: cannot open shared object file: No such file or directory" and "ACD file not opened" errors on Argon HPC, I had to run:
 
 ```
 export LD_LIBRARY_PATH=$(find /Users/knguyen19/EMBOSS-6.6.0 -type d -name ".libs" | tr '\n' ':' )$LD_LIBRARY_PATH

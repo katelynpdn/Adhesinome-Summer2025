@@ -19,8 +19,9 @@ Some sections adapted from Rachel Smoak, Bin He's work in C037-Cand-auris-adhesi
 
 ## Parse hmmscan --domtblout output
 
-```{r}
+```{r read_hmmscan}
 library(dplyr)
+library(tidyr)
 library(ggplot2)
 library(readr)
 
@@ -42,19 +43,42 @@ xstream_output_directory = paste0(args[1], "/tandem-repeats")
 
 hmm.names <- c("target_name", "target_accession", "target_length", "query_name", "query_accession", "query_length", "seq_evalue", "seq_score", "seq_bias", "domain_num", "num_target_domains", "c_evalue", "i_evalue", "domain_score", "domain_bias", "hmm_from", "hmm_to", "ali_from", "ali_to", "env_from", "env_to", "accuracy")
 hmmscan_df <- read_table(file = hmmscan_domtblout_file, col_names = hmm.names, col_types = "cciccidddiiddddiiiiiid", skip = 3)
+
+hmmscan_df <- hmmscan_df %>%
+  # Extract protein name
+  separate(query_name, into = c(NA, "ID", "Name"), sep = "\\|")
 ```
 
-### Filter out anything that doesn't satisfy inclusion threshold (seq_evalue \< 0.01 and c-evalue \< 0.01)
+### Filter out anything that doesn't satisfy inclusion threshold (seq_evalue \< 0.01 and c-evalue \< 0.01), Create pfam_domains, unique_domains, and uncertain_domains
 
-```{r}
+```{r pfam_domains}
 filtered_hmm_df <- hmmscan_df %>% 
   filter(seq_evalue < 0.01 & c_evalue < 0.01) %>% 
-  # Extract protein name
-  separate(query_name, into = c("tmp", "ID", "Name"), sep = "\\|") %>%
   group_by(ID) %>%
   # Collapse into list of pfam domains for each protein
   reframe(pfam_domains = paste0(target_name, " (", env_from, "-", env_to,  ")", collapse = ", "), 
           unique_domains = paste(unique(target_name), collapse = ", "))
+
+# Filter uncertain domains
+uncertain_domains_df <- hmmscan_df %>%
+  filter(seq_evalue >= 0.01 | c_evalue >= 0.01) %>%
+  distinct(ID, target_name, seq_evalue)
+
+uncertain_domains_df <- uncertain_domains_df %>% 
+  left_join(filtered_hmm_df %>% 
+              select(ID, unique_domains), by = "ID") %>%
+  rowwise() %>%
+  # Remove uncertain domains already in unique_domains
+  filter(!target_name %in% strsplit(unique_domains, ", ")[[1]]) %>%
+  ungroup() %>%
+  arrange(ID, seq_evalue) %>%   # Sort by ID then E-value (ascending)
+  group_by(ID) %>%
+  reframe(`uncertain_domains (E-value)` = paste0(target_name, " (", seq_evalue, ")", collapse = ", "))
+
+# Merge back into main dataframe
+filtered_hmm_df <- filtered_hmm_df %>%
+  full_join(uncertain_domains_df, by = "ID") %>%
+  relocate(`uncertain_domains (E-value)`, .after = last_col())
 ```
 
 ## Parse output from 01-three-part-adhesin-test
@@ -108,10 +132,10 @@ rm(list = c("ST.freq", "S.freq", "T.freq"))
 ST.window %>% 
   left_join(select(part_one_df, id = "Protein Name", failed_tests), by = "id") %>% 
   mutate(residue = factor(residue, levels = c("ST", "S", "T"), labels = c("Ser/Thr", "Ser", "Thr")),
-         `Adhesin` = ifelse(failed_tests == "", "Yes", "No")) %>% 
+         `Passed Tests` = ifelse(failed_tests == "", "Yes", "No")) %>% 
   ggplot(aes(x = max)) + geom_histogram(binwidth = 0.02) + 
   xlab("Max frequency of Ser/Thr in 100 amino acid window") + scale_y_continuous(position = "right") +
-  facet_grid(`Adhesin` ~ residue, scales = "free_y", labeller = "label_both", switch = "y") + theme_minimal(base_size = 12) +
+  facet_grid(`Passed Tests` ~ residue, scales = "free_y", labeller = "label_both", switch = "y") + theme_minimal(base_size = 12) +
   theme(
     strip.placement = "outside",
     strip.background = element_blank(),
@@ -248,7 +272,8 @@ tmp <- tango.res.df %>%
 all_hmm_df <- all_hmm_df %>% 
   left_join(tmp %>% 
               select(ID,  "B-agg sequences", "B-agg seq count")
-            , by = "ID")
+            , by = "ID") %>% 
+  mutate(`B-agg seq count` = replace_na(`B-agg seq count`, 0))
 ```
 
 ```{r graph_beta_agg}
@@ -338,10 +363,29 @@ all_hmm_df <- all_hmm_df %>%
   relocate(`FungalRV Score`, .after = `Name`) %>%
   relocate(`failed_tests`, .after = `FungalRV Score`)
 
-# Split into Three (passing three conditions), Two (passing two conditions), and One (passing at least one condition)
+# Summary Table of Percentiles
+percentages <- c(0.25, 0.50, 0.75, 0.90, 0.95, 0.99)
+st_freq_col <- quantile(all_hmm_df$`S/T Frequency`, probs = percentages)
+max_window_st_col <- quantile(all_hmm_df$`Max window S/T frequency`, probs = percentages)
+b_agg_per_residue_col <- quantile(all_hmm_df$`Average B-aggregation per residue`, probs = percentages)
+b_agg_count_col <- quantile(all_hmm_df$`B-agg seq count`, probs = percentages)
+tr_col <- quantile(all_hmm_df$`TR Percentage`, probs = percentages)
 
+percentile_df <- data.frame("Percentile" = percentages, "S/T Frequency" = st_freq_col, "Max Window S/T Frequency" = max_window_st_col, "Average B-aggregation Per Residue" = b_agg_per_residue_col, "B-aggregation seq count" = b_agg_count_col, "TR Percentage" = tr_col)
+
+# Add row for mean
+percentile_df <- percentile_df %>%
+  rbind("Mean" = c(NA, mean(all_hmm_df$`S/T Frequency`), 
+        mean(all_hmm_df$`Max window S/T frequency`), 
+        mean(all_hmm_df$`Average B-aggregation per residue`), 
+        mean(all_hmm_df$`B-agg seq count`), 
+        mean(all_hmm_df$`TR Percentage`)))
+```
+Split into 3 Tables: Three (passing three conditions), Two (passing two conditions), and One (passing at least one condition)
+```{r}
 # Table 1: All 3 criteria satisfied (FungalRV, PredGPI, SignalP)
-df_three <- all_hmm_df[all_hmm_df$failed_tests == "", ]
+df_three <- all_hmm_df[all_hmm_df$failed_tests == "", ] %>%
+  select(-failed_tests)
 rownames(df_all) <- NULL
 
 # Table 2: Two criteria satisfied (1 test failed)
