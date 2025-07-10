@@ -6,14 +6,15 @@ import sys
 import csv
 from Bio import SeqIO
 
-if len(sys.argv) != 3:
-    print("Usage: python extractSeq.py <combinedOutput.csv> <proteome.fasta>")
+if len(sys.argv) != 4:
+    print("Usage: python extractSeq.py <combinedOutput.csv> <proteome.fasta> <outDirectory>")
     sys.exit(1)
 
 inputFile = sys.argv[1]
 proteomeFile = sys.argv[2]
-outputFile = "../results/seqList_all.fasta"
-outputFile2 = "../results/seqList_other.fasta"
+outDir = sys.argv[3]
+outputFile = f"{outDir}/seqList_all.fasta"
+outputFile2 = f"{outDir}/seqList_other.fasta"
 
 fungalCutoff = 0.511
 signalPCutoff = 0.5
@@ -25,9 +26,9 @@ with open(inputFile, "r") as f:
     csvReader = csv.reader(f)
     next(csvReader) # Skip header line
     for row in csvReader:
-        if (row[2].lower() == "true" or float(row[1]) > fungalCutoff or float(row[3]) > signalPCutoff):
+        if (row[3].lower() == "true" or float(row[2]) > fungalCutoff or float(row[4]) > signalPCutoff):
             # If all conditions are true, add to seqList_all
-            if (row[2].lower() == "true" and float(row[1]) > fungalCutoff and float(row[3]) > signalPCutoff):
+            if (row[3].lower() == "true" and float(row[2]) > fungalCutoff and float(row[4]) > signalPCutoff):
                 proteinID = row[0]
                 proteins.add(proteinID)
             # If at least 1 condition is true, add to seqList_other

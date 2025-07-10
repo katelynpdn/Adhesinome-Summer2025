@@ -1,4 +1,4 @@
-# Remove any X's in a FASTA file
+# Remove any residue ambiguities: B/J/O/U/X/Z in a FASTA file
 import sys
 
 if len(sys.argv) != 3:
@@ -7,10 +7,13 @@ if len(sys.argv) != 3:
 
 inputFile = sys.argv[1]
 outputFile = sys.argv[2]
+ambiguity_letters = "BJOUXZ"
 
 with open(inputFile, "r") as inputf, open(outputFile, "w") as outf:
     for line in inputf:
         if line.startswith(">"):    # ID
             outf.write(line) 
         else:   # Sequence
-            outf.write(line.replace("X", ""))   # Remove any X's
+            # Remove any ambiguities
+            translationTable = str.maketrans('', '', ambiguity_letters)
+            outf.write(line.translate(translationTable))

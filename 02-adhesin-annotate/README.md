@@ -15,6 +15,12 @@ gunzip Pfam-A.hmm.gz
 hmmpress Pfam-A.hmm
 ```
 
+Or on Argon HPC:
+
+```
+module load hmmer/3.3.2_gcc-9.3.0
+```
+
 #### Download EMBOSS
 
 Installation varies based on your machine. For example,

@@ -25,7 +25,7 @@ library(tidyr)
 library(ggplot2)
 library(readr)
 
-params <- list(args = "../results/aurisComplete ../../01-three-part-adhesin-test/results/proteinTable.csv")
+# params <- list(args = "../results/aurisComplete ../../01-three-part-adhesin-test/results/proteinTable.csv")
 
 args <- strsplit(params$args, " ")[[1]]
 
@@ -184,9 +184,9 @@ all_hmm_df <- all_hmm_df %>%
 ```
 
 ## Read TANGO output
-Average B-Aggregation per protein
+Average B-Aggregation per residue
 ```{r}
-# Read in Average Aggregation per protein
+# Read in Average Aggregation per residue
 tango_df <- read_tsv(paste0(tango_output_directory,"/perSequence_aggregation.txt")
                      , col_types = cols())
 # Extract protein ID, protein name
