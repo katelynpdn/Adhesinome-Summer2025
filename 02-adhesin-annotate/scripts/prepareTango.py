@@ -10,9 +10,11 @@ if len(sys.argv) != 2:
     sys.exit(1)
 
 inputFile = sys.argv[1]
+ambiguity_letters = "BJOUXZ"
+translationTable = str.maketrans('', '', ambiguity_letters)
 
 # Compile sequence file for Tango in the format (Name Cter Nter pH Temp Ionic Stability Concentration Sequence)
 for record in SeqIO.parse(inputFile, "fasta"): 
-    # Remove any X's from sequence  
-    seq_noX =  record.seq.replace("X", "")
-    print(record.id, "N", "N", 7.5, 298, 0.1, -10, 1, seq_noX, sep=" ")
+    # Remove any ambiguities
+    seq_clean = str(record.seq).translate(translationTable)
+    print(record.id, "N", "N", 7.5, 298, 0.1, -10, 1, seq_clean, sep=" ")

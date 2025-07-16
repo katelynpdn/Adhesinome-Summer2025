@@ -11,7 +11,7 @@ params:
 <!--
 To run this R Markdown from the command line with arguments:
 
-Rscript -e "rmarkdown::render('parse_all.Rmd', params = list(args = '<output_directory> <01_output_file>'))"
+Rscript -e "rmarkdown::render('parse_all.Rmd', params = list(args = '<output_directory>'))"
 -->
 ```
 
@@ -25,17 +25,18 @@ library(tidyr)
 library(ggplot2)
 library(readr)
 
-# params <- list(args = "../results/aurisComplete ../../01-three-part-adhesin-test/results/proteinTable.csv")
+# CHANGE FILEPATHS HERE
+params <- list(args = "/Volumes/rdss_bhe2/User/Katelyn-Nguyen/Adhesinome_Results/UP000002428_output")
 
 args <- strsplit(params$args, " ")[[1]]
 
-if (length(args) != 2){
-  print("Usage: <input_directory> <01_output_file>")
+if (length(args) != 1){
+  print("Usage: <input_directory>")
   stop()
 }
 
 hmmscan_domtblout_file = paste0(args[1], "/hmmscan_domtblout")
-three_part_test_file = args[2]
+three_part_test_file = paste0(args[1], "/proteinTable.csv")
 freak_output_directory = paste0(args[1], "/freak-output")
 ser_thr_output = paste0(args[1], "/ST_freq_perProtein")
 tango_output_directory = paste0(args[1], "/tango-output")
@@ -241,8 +242,8 @@ extract_tango <- function(tango_output, agg_threshold = 5, required_in_serial = 
 
 Apply to individual proteome
 
-```{r tango_extract, eval=FALSE, warning=FALSE}
-tango.output.files <- list.files(path = tango_output_directory, pattern = "^tr\\|.*\\.txt(\\.gz)?$", full.names = TRUE)
+```{r tango_extract, warning=FALSE}
+tango.output.files <- list.files(path = tango_output_directory, pattern = ".+\\|.*\\.txt(\\.gz)?$", full.names = TRUE)
 # the read_csv() function used in the custom function can automatically decompress gzipped files
 tango.res <- lapply(tango.output.files, extract_tango)
 names(tango.res) <- gsub(".txt|.txt.gz", "", basename(tango.output.files))
@@ -265,13 +266,13 @@ tmp <- tango.res.df %>%
   group_by(ID) %>%
   # Filter out sequences with low median (< 30th percentile) and low IVT (< 30th percentile) scores
   # filter(ivt >= ivt_30th | median >= median_30th) %>%
-  summarize("B-agg seq count" = n(), "B-agg sequences" = paste(sort(seq), collapse = ", "), 
+  summarize(`B-agg seq count` = n(), `B-agg sequences` = paste(sort(seq), collapse = ", "), 
             medScore = round(mean(median),1),
             IVT = round(mean(ivt),2),)
 
 all_hmm_df <- all_hmm_df %>% 
   left_join(tmp %>% 
-              select(ID,  "B-agg sequences", "B-agg seq count")
+              select(ID,  `B-agg sequences`, `B-agg seq count`)
             , by = "ID") %>% 
   mutate(`B-agg seq count` = replace_na(`B-agg seq count`, 0))
 ```
@@ -362,7 +363,9 @@ Parse and Save final tables
 all_hmm_df <- all_hmm_df %>% 
   relocate(`FungalRV Score`, .after = `Name`) %>%
   relocate(`failed_tests`, .after = `FungalRV Score`)
-
+```
+Calculate, Save Summary Table of Percentiles
+```{r}
 # Summary Table of Percentiles
 percentages <- c(0.25, 0.50, 0.75, 0.90, 0.95, 0.99)
 st_freq_col <- quantile(all_hmm_df$`S/T Frequency`, probs = percentages)
@@ -380,13 +383,15 @@ percentile_df <- percentile_df %>%
         mean(all_hmm_df$`Average B-aggregation per residue`), 
         mean(all_hmm_df$`B-agg seq count`), 
         mean(all_hmm_df$`TR Percentage`)))
+write.csv(percentile_df, file = paste0(args[1], "/percentiles_df.csv"))
+print("Percentiles table saved to percentiles_df.csv")
 ```
 Split into 3 Tables: Three (passing three conditions), Two (passing two conditions), and One (passing at least one condition)
 ```{r}
 # Table 1: All 3 criteria satisfied (FungalRV, PredGPI, SignalP)
 df_three <- all_hmm_df[all_hmm_df$failed_tests == "", ] %>%
   select(-failed_tests)
-rownames(df_all) <- NULL
+rownames(df_three) <- NULL
 
 # Table 2: Two criteria satisfied (1 test failed)
 df_two <- all_hmm_df[sapply(strsplit(all_hmm_df$failed_tests, split=","), length) == 1, ]

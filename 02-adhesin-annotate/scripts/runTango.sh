@@ -20,12 +20,15 @@ if [ ! -f "$inputFile" ]; then
     exit 1
 fi
 
-# Prepare input file
-python prepareTango.py $inputFile > perSequence.txt
+mkdir -p "$outputDirectory"
 
+# Prepare input file
+python prepareTango.py $inputFile > "$outputDirectory/perSequence.txt"
+
+# Copy Tango over to output directory (because script creates files in current directory)
+cp tango2_3_1 "$outputDirectory"
+cd "$outputDirectory"
 # Run Tango (y: Yes to prediction per residue)
 echo -e "y\nperSequence.txt" | ./tango2_3_1
 rm perSequence.txt
-
-mkdir -p "$outputDirectory"
-mv tr\|*.txt perSequence_aggregation.txt "$outputDirectory"
+rm tango2_3_1

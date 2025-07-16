@@ -4,12 +4,20 @@ library(ggvenn)
 
 args <- commandArgs(trailingOnly = TRUE)
 
-if (length(args) != 1){
-  print("Usage: Rscript adhesinPlot.R <inputFile>")
+if (length(args) != 2){
+  print("Usage: Rscript adhesinPlot.R <inputFile> <outputDirPath>")
   stop()
 }
 
-adhesinData <- read.csv(file = args[1])
+inputFile <- args[1]
+outputDir <- args[2]
+
+adhesinData <- read.csv(file = inputFile)
+if (!dir.exists(outputDir)) {
+  dir.create(outputDir, recursive = TRUE)
+}
+outputFile <- file.path(outputDir, "part1Plots.pdf")
+pdf(outputFile, width = 8, height = 6)
 
 adhesinData |> 
   ggplot(aes(x = FungalRV.Score, fill = GPI.anchor)) + 
@@ -41,3 +49,5 @@ adhesinData |>
   mutate(FungalRV.Positive = (FungalRV.Score > 0.511), 
          SignalP.Positive = (Signal.Peptide > 0.5),
          GPI.anchor = as.logical(GPI.anchor)) |> ggvenn()
+
+dev.off()

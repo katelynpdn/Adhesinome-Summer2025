@@ -27,7 +27,8 @@ dataDir="$baseDir/01-three-part-adhesin-test/data"
 for proteome in "${proteomeList[@]}"
 do
     outDir="${proteome}_output"
-    outDir_path="$baseDir/01-three-part-adhesin-test/results/$outDir"
+    outDir_01_path="$baseDir/01-three-part-adhesin-test/results/$outDir"
+    outDir_02_path="$baseDir/02-adhesin-annotate/results/$outDir"
     
     # Download proteome
     cd "$dataDir"
@@ -54,7 +55,7 @@ do
     # Part 01
     # If proteinTable.csv already exists in outputDirectory, ask user if they want to still run Part 01
     part1Continue="y"
-    if [ -f "$outDir_path/proteinTable.csv" ]; then
+    if [ -f "$outDir_01_path/proteinTable.csv" ]; then
         read -p "proteinTable.csv exists from a previous run. Run PART 01 anyways? (y/n) " part1Continue
     fi
     if [[ $part1Continue == "y" || $part1Continue == "Y" || $part1Continue == "yes" || $part1Continue == "Yes" ]]; then
@@ -65,17 +66,14 @@ do
         echo "Skipping PART 01, continuing to PART 02..."
     fi
 
-    # Part 02 - Run on seqList_other.fasta (sequences satisfying at least 1 condition)
-    # Copy seqlist_other.fasta (from part 01 results) to part 02, check if it exists
-    if [ ! -f "$outDir_path/seqList_other.fasta" ]; then
-        echo "Error: seqList_other.fasta not found for $proteome"
-        exit 1
-    fi
-    mkdir -p "$baseDir/02-adhesin-annotate/data"
-    cp "$outDir_path/seqList_other.fasta" "$baseDir/02-adhesin-annotate/data/"
-    
+    # Part 02 - Run on all protein sequences
     cd "$baseDir/02-adhesin-annotate/scripts"
-    ./02-pipeline.sh "../data/seqList_other.fasta" "$2" "$outDir_path/proteinTable.csv" "$outDir"
+    # Copy proteinTable.csv into Part 02 results
+    cp "$outDir_01_path/proteinTable.csv" "$outDir_02_path/"
+    ./02-pipeline.sh "$dataDir/${proteomeFile}" "$2" "$outDir_02_path/proteinTable.csv" "$outDir"
     echo "Proteome $proteome Part 02 complete, check 02-adhesin-annotate/results."
+
+    # Plot Part 01 in R
+    Rscript adhesinPlot.R "$outDir_02_path/proteinTable.csv" "$outDir_02_path"
 done
 cd "$baseDir"
