@@ -24,9 +24,13 @@ library(dplyr)
 library(tidyr)
 library(ggplot2)
 library(readr)
+library(ggvenn)
 
-# CHANGE FILEPATHS HERE
-params <- list(args = "/Volumes/rdss_bhe2/User/Katelyn-Nguyen/Adhesinome_Results/UP000002428_output")
+# CHANGE ID HERE, to modify input&output directory
+uniprotID = "UP000230249"
+
+# Input and output directory
+params <- list(args = paste0("/Volumes/rdss_bhe2/User/Katelyn-Nguyen/Adhesinome_Results/", uniprotID, "_output"))
 
 args <- strsplit(params$args, " ")[[1]]
 
@@ -106,6 +110,15 @@ part_one_df <- part_one_df %>%
     failed_tests = gsub(", ,", ",", failed_tests),
     failed_tests = gsub("^, |, , |, $", "", failed_tests)
   )
+```
+Graph Venn Diagram of Part 1 output
+```{r graphVennDiagram}
+part_one_df %>% 
+  mutate("FungalRV" = (`FungalRV Score` > 0.511), 
+         "SignalP" = (`Signal Peptide` > 0.5),
+         "PredGPI" = as.logical(`GPI-anchor`)) %>%
+  select("FungalRV", "SignalP", "PredGPI") %>%
+  ggvenn()
 ```
 
 ## Combine hmmscan, 01-three-part-test output
@@ -283,6 +296,7 @@ all_hmm_df %>%
   ggplot(aes(x = (failed_tests == ""), y = `B-agg seq count`)) + 
   geom_violin() + 
   scale_x_discrete(labels = c("Failed", "Passed All Tests")) +
+  xlab("Protein Status") +
   theme_minimal(base_size = 12) +
   theme(
     strip.placement = "outside",
@@ -293,7 +307,8 @@ all_hmm_df %>%
 
 all_hmm_df %>%
   ggplot(aes(x = (failed_tests == ""), y = `Average B-aggregation per residue`)) + geom_violin() + 
-  scale_x_discrete(labels = c("Failed", "Passed All Tests")) +
+  scale_x_discrete(labels = c("Failed", "Passed All Tests")) + 
+  xlab("Protein Status") +
   theme_minimal(base_size = 12) +
   theme(
     strip.placement = "outside",
@@ -350,6 +365,7 @@ all_hmm_df <- all_hmm_df %>%
 all_hmm_df %>%
   ggplot(aes(x = (failed_tests == ""), y = `TR Percentage`)) + geom_violin() + 
   scale_x_discrete(labels = c("Failed", "Passed All Tests")) +
+  xlab("Protein Status") +
   theme_minimal(base_size = 12) +
   theme(
     strip.placement = "outside",
