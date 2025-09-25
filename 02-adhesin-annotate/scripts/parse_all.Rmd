@@ -86,6 +86,100 @@ filtered_hmm_df <- filtered_hmm_df %>%
   relocate(`uncertain_domains (E-value)`, .after = last_col())
 ```
 
+Graph Pfam domains
+```{r graph_pfam}
+```{r}
+# get the ids to plot
+id.to.plot <- candidates %>% filter(is.leader, length >= 195) %>% pull(name)
+
+# we will be building the plot in layers: 1) whole protein (grey); 2) tandem repeats; 3) pfam domains; 4) signalp and pred.gpi; 5) if possible, tango hits
+# the relevant data can be assembled separately
+
+df.whole <- candidates %>% 
+  filter(name %in% id.to.plot) %>% 
+  mutate(start = 1, end = length, feature = "whole protein",
+         name = ordered(name, levels = rev(id.to.plot))) %>% 
+  select(name, feature, start, end, group)
+
+df.repeats <- repeats %>% 
+  mutate(feature = paste("TR", type, "-")) %>% 
+  select(name = identifier, feature, start, end) %>% 
+  filter(name %in% id.to.plot) %>% 
+  left_join(select(df.whole, name, group), by = "name")
+
+df.pfam <- hmmscan_pfam %>% 
+  filter(!outcompeted,  # remove lower-scored overlapping domains
+         !hmm_name %in% c("Hyr1", "Candida_ALS")) %>% # remove two repeat domains , "Flocculin_t3"
+  mutate(name = str_sub(seq_id, 2), # remove > from seq.id
+         feature = paste0(hmm_name, " (", gsub("\\.[0-9]+", "", hmm_acc), ")")) %>% # feature name
+  filter(name %in% id.to.plot) %>% 
+  left_join(select(df.whole, name, group), by = "name") %>% 
+  select(name, feature, start = envelope_start, end = envelope_end, group)
+
+df.signalp <- signalp5 %>% 
+  filter(id %in% id.to.plot) %>% 
+  mutate(feature = "SignalP") %>% 
+  select(name = id, start, end) %>% 
+  left_join(select(df.whole, name, group), by = "name")
+
+df.gpi <- pred.gpi %>% 
+  filter(name %in% id.to.plot, is.gpi) %>% 
+  mutate(feature = "GPI-anchor") %>% 
+  left_join(select(df.whole, name, group, end), by = "name") %>% 
+  select(name, feature, start = cleavePos, end, group)
+
+df.tango <- tango.res.df1 %>% 
+  filter(id %in% id.to.plot) %>% 
+  mutate(feature = "tango") %>% 
+  select(name = id, feature, start, end, median, seq) %>% 
+  left_join(select(df.whole, name, group), by = "name")
+```
+
+Build the plot
+```{r, fig.height=5.4, fig.width=7.2}
+# protein backbone
+p0 <- ggplot(df.whole, aes(x = name, y = start, xend = name, yend = end)) + 
+  geom_hline(yintercept = 500, color = "grey80", size = 0.2) + # add a visual divider to distinguish between long and short
+  geom_segment(color = "grey80", size = 2)
+# tandem repeats
+p1 <- geom_segment(data = df.repeats, aes(size = "Tandem Repeats"), color = "orange4", alpha = 0.5)
+
+# pfam
+require(RColorBrewer)
+feature.col <- c(brewer.pal(12, "Paired")[c(9,2,4,3,5,7,11,8)], brewer.pal(8, "Dark2")[c(2,8,3,4,6)],"brown3", "navyblue", "skyblue")
+#(length(unique(df.pfam$feature))) # define the colors
+p2 <- geom_segment(data = df.pfam, aes(color = feature), size = 2)
+
+# signalp and gpi
+p3 <- geom_segment(data = df.signalp, aes(size = "SignalP"), color = "#e31a1c")
+p4 <- geom_segment(data = df.gpi, aes(size = "GPI-anchor"), color = "#6a3d9a")
+
+# tango
+p5 <- geom_segment(data = df.tango, aes(y = start,  yend = end + 1, alpha = median),
+                   position = position_nudge(x = -0.42, y = 0), color = "darkred", size = .8)
+
+# plot
+p0 + p1 + p2 + p3 + p4 + p5 + coord_flip() + 
+  #facet_wrap(~group, scales = "free_y") +
+  scale_color_manual(values = c(feature.col)) + 
+  scale_size_manual(
+    "Other features", values=rep(2,3),
+    guide=guide_legend(override.aes = list(colour=c("#6a3d9a", "#e31a1c", alpha("orange4",.5))))
+  ) +
+  guides(alpha = "none") +
+  scale_y_continuous(breaks = seq(0,2500,500), expand = expansion(mult = 0.02)) +
+  theme_classic(base_size = 12) + background_grid(major = "x") +
+  theme(axis.text.y = element_text(size = 5), axis.title.y = element_blank(),
+        axis.line.y = element_blank(),# axis.ticks.y = element_blank(),
+        #axis.line.x = element_blank(),# axis.ticks.x = element_blank(),
+        legend.position = c(0.65, 0.45), legend.box = "horizontal",
+        panel.background = element_rect(fill = alpha("lightblue",0.1))) +
+  labs(y = "Position in sequence", x = "Sequences", color = "Pfam domains")
+ggsave("output/figure/20210720-cwp-candidates-domain-schematic.png", width = 7.2, height = 5.4)
+```
+```
+
+
 ## Parse output from 01-three-part-adhesin-test
 
 ```{r}

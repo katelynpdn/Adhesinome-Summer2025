@@ -1,0 +1,76 @@
+(
+(
+(
+(
+'Candidozyma duobushaemuli':4,
+'Candidozyma auris':4,
+'Candidozyma pseudohaemuli':4,
+'Candidozyma haemuli':4
+)Candidozyma:4,
+'Clavispora lusitaniae':4
+)Metschnikowiaceae:4,
+(
+'Yamadazyma tenuis':4,
+'Hyphopichia burtonii':4,
+'Spathaspora passalidarum':4,
+(
+'Lodderomyces elongisporus':4,
+(
+'Candida orthopsilosis':4,
+'Candida dubliniensis':4,
+'Candida tropicalis':4,
+'Candida parapsilosis':4,
+'Candida albicans':4
+)Candida:4
+)'Candida/Lodderomyces clade':4,
+(
+'Debaryomyces fabryi':4,
+'Debaryomyces hansenii':4
+)Debaryomyces:4,
+'Meyerozyma guilliermondii':4,
+'Scheffersomyces stipitis':4
+)Debaryomycetaceae:4
+)Serinales:4,
+(
+(
+'Henningerozyma blattae':4,
+'Huiozyma naganishii':4,
+'Kazachstania africana':4,
+(
+'Lachancea lanzarotensis':4,
+'Lachancea thermotolerans':4
+)Lachancea:4,
+'Tetrapisispora phaffii':4,
+'Zygotorulaspora mrakii':4,
+(
+'Eremothecium cymbalariae':4,
+'Eremothecium gossypii':4
+)Eremothecium:4,
+(
+'Naumovozyma dairenensis':4,
+'Naumovozyma castellii':4
+)Naumovozyma:4,
+'Nakaseomyces glabratus':4,
+'Zygosaccharomyces rouxii':4,
+'Torulaspora delbrueckii':4,
+(
+'Saccharomyces eubayanus':4,
+'Saccharomyces mikatae':4,
+'Saccharomyces kudriavzevii':4,
+'Saccharomyces paradoxus':4,
+'Saccharomyces cerevisiae':4
+)Saccharomyces:4,
+(
+'Kluyveromyces lactis':4,
+'Kluyveromyces marxianus':4
+)Kluyveromyces:4
+)Saccharomycetaceae:4,
+(
+(
+'Wickerhamomyces ciferrii':4,
+'Wickerhamomyces anomalus':4
+)Wickerhamomyces:4,
+'Cyberlindnera jadinii':4
+)Phaffomycetales:4
+)Saccharomycetes:4
+)Saccharomycotina:4;
