@@ -27,10 +27,10 @@ library(readr)
 library(ggvenn)
 
 # CHANGE ID HERE, to modify input&output directory
-uniprotID = "UP000230249"
+uniprotID = "positive_adhesin"
 
 # Input and output directory
-params <- list(args = paste0("/Volumes/rdss_bhe2/User/Katelyn-Nguyen/Adhesinome_Results/", uniprotID, "_output"))
+params <- list(args = paste0("/Users/katelynnguyen/Downloads/Adhesinome-Summer2025/02-adhesin-annotate/results/", uniprotID, "_output"))
 
 args <- strsplit(params$args, " ")[[1]]
 
@@ -88,7 +88,6 @@ filtered_hmm_df <- filtered_hmm_df %>%
 
 Graph Pfam domains
 ```{r graph_pfam}
-```{r}
 # get the ids to plot
 id.to.plot <- candidates %>% filter(is.leader, length >= 195) %>% pull(name)
 
@@ -176,7 +175,6 @@ p0 + p1 + p2 + p3 + p4 + p5 + coord_flip() +
         panel.background = element_rect(fill = alpha("lightblue",0.1))) +
   labs(y = "Position in sequence", x = "Sequences", color = "Pfam domains")
 ggsave("output/figure/20210720-cwp-candidates-domain-schematic.png", width = 7.2, height = 5.4)
-```
 ```
 
 

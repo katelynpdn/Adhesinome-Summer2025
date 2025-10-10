@@ -69,6 +69,7 @@ do
     # Part 02 - Run on all protein sequences
     cd "$baseDir/02-adhesin-annotate/scripts"
     # Copy proteinTable.csv into Part 02 results
+    mkdir -p "$outDir_02_path/"
     cp "$outDir_01_path/proteinTable.csv" "$outDir_02_path/"
     ./02-pipeline.sh "$dataDir/${proteomeFile}" "$2" "$outDir_02_path/proteinTable.csv" "$outDir"
     echo "Proteome $proteome Part 02 complete, check 02-adhesin-annotate/results."

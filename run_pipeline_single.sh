@@ -10,16 +10,19 @@ if [ "$#" -ne 2 ]; then
     exit 1
 fi
 
-proteomeFile=$(readlink -f "$1")
-proteomeFile_no_extension="${proteomeFile%.*}"
-proteome="$(basename ${proteomeFile_no_extension})"
+inputFile=$(readlink -f "$1")
 pfamDir=$2
 
 # Save base directory
 baseDir="$(cd "$(dirname "$0")" && pwd)"
+# Copy inputFile over to data directory (this is for Part 01 FungalRV perl script that still only accepts relative paths)
+dataDir="$baseDir/01-three-part-adhesin-test/data"
+cp "$inputFile" "${dataDir}/"
 
 # Run pipeline on file
-outDir="${proteome}_output"
+proteomeFile="$(basename $inputFile)"
+proteomeFile_no_extension="${proteomeFile%.*}"
+outDir="${proteomeFile_no_extension}_output"
 outDir_01_path="$baseDir/01-three-part-adhesin-test/results/$outDir"
 outDir_02_path="$baseDir/02-adhesin-annotate/results/$outDir"
 
@@ -31,7 +34,7 @@ if [ -f "$outDir_01_path/proteinTable.csv" ]; then
 fi
 if [[ $part1Continue == "y" || $part1Continue == "Y" || $part1Continue == "yes" || $part1Continue == "Yes" ]]; then
     cd ./01-three-part-adhesin-test
-    ./adhesinPipeline.sh "${proteomeFile}" "$outDir"
+    ./adhesinPipeline.sh "data/${proteomeFile}" "$outDir"
     echo "File $proteome Part 01 complete, check 01-three-part-adhesin-test/results."
 else
     echo "Skipping PART 01, continuing to PART 02..."
@@ -40,8 +43,9 @@ fi
 # Part 02 - Run on all protein sequences
 cd "$baseDir/02-adhesin-annotate/scripts"
 # Copy proteinTable.csv into Part 02 results
+mkdir -p "$outDir_02_path/"
 cp "$outDir_01_path/proteinTable.csv" "$outDir_02_path/"
-./02-pipeline.sh "${proteomeFile}" "$2" "$outDir_02_path/proteinTable.csv" "$outDir"
+./02-pipeline.sh "$dataDir/${proteomeFile}" "$2" "$outDir_02_path/proteinTable.csv" "$outDir"
 echo "File $proteome Part 02 complete, check 02-adhesin-annotate/results."
 
 cd "$baseDir"
