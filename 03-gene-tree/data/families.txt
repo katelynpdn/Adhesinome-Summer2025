@@ -1,6 +1,0 @@
-[FAMILIES]
-- Als
-starting_gene_tree = fastTree.nhx
-alignment = MAFFT.fasta
-mapping = gene_species_mapping.txt
-subst_model = LG+G
