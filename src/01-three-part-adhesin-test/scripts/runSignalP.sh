@@ -12,7 +12,7 @@ fi
 inputFile=$1
 
 # Split FASTA file into smaller files
-python splitFasta.py "$inputFile"
+python splitFasta.py "$inputFile" 300
 
 if ! test -f "output/output.json"; then
     mkdir -p output
