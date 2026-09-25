@@ -1,4 +1,4 @@
-# Split FASTA file into chunks of 300 (or less) sequences
+# Split FASTA file into chunks of a specified number of sequences
 
 import sys
 import os
