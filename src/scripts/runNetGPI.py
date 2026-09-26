@@ -156,7 +156,7 @@ def main():
     input_dir = os.path.dirname(fasta_file)
 
     # Split the input FASTA
-    split_fasta(fasta_file, 5000)
+    split_fasta(fasta_file, 5000, input_dir)
 
     # Find only the split files belonging to this input, from the same directory as the input.
     fasta_basename = os.path.splitext(

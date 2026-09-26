@@ -109,6 +109,8 @@ do
         echo "Skipping NetGPI step, continuing..."
     fi
 
+    # Change directories
+    cd "$SUBSCRIPTS_DIR"
 
     # === SignalP ===
 
@@ -128,8 +130,6 @@ do
           "$spContinue" == "Yes" ]]; then
 
         echo "-------------Running SignalP-------------"
-
-        cd "$SUBSCRIPTS_DIR"
 
         ./runSignalP.sh "$proteomeFile"
 

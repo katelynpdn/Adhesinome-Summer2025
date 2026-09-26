@@ -12,7 +12,7 @@ fi
 inputFile=$1
 
 # Split FASTA file into smaller files
-python splitFasta.py "$inputFile" 300
+python splitFasta.py "$inputFile" 300 "../tmp"
 
 if ! test -f "output/output.json"; then
     mkdir -p output
@@ -27,7 +27,7 @@ do
 done
 
 # Remove each FASTA file after it is processed
-for infile in *_group_*.fasta
+for infile in ../tmp/*_group_*.fasta
 do
     rm -f "$infile"
 done

@@ -7,3 +7,5 @@ DATA_DIR="$BASE_DIR/data"
 RESULTS_DIR="$BASE_DIR/results"
 SRC_DIR="$BASE_DIR/src"
 SUBSCRIPTS_DIR="$BASE_DIR/src/scripts"
+
+export PREDGPI_HOME="$SRC_DIR/predgpi"

@@ -32,17 +32,7 @@ make
 mv svm_classify ../
 ```
 
-## 3. PredGPI
-
-Set and export PREDGPI_HOME to point to the program directory:
-
-```
-$ export PREDGPI_HOME='/path/to/src/predgpi'
-```
-
-Replace /path/to with the path to this repository.
-
-## 4. Install HMMER
+## 3. Install HMMER
 
 Installation varies depending on the operating system.
 
@@ -58,7 +48,7 @@ Verify HMMER installed with
 hmmsearch -h
 ```
 
-## 5. Download and Prepare Pfam
+## 4. Download and Prepare Pfam
 
 ```
 wget https://ftp.ebi.ac.uk/pub/databases/Pfam/releases/Pfam37.4/Pfam-A.hmm.gz
@@ -66,7 +56,7 @@ gunzip Pfam-A.hmm.gz
 hmmpress Pfam-A.hmm
 ```
 
-## 6. Install EMBOSS
+## 5. Install EMBOSS
 
 ### Conda
 
@@ -84,3 +74,23 @@ export EMBOSS_ACDROOT="$EMBOSS_HOME/emboss/acd"
 ```
 
 Replace /path/to/EMBOSS-6.6.0 with the location of your EMBOSS installation.
+
+## 6. Rscript and Tidyverse
+
+Rscript must be installed on your machine, as well as the tidyverse library. You can install tidyverse by running
+
+```
+Rscript -e "install.packages('tidyverse')"
+```
+
+## 7. Virtual python environment: pybiolib and pandas
+
+Set up a virtual python environment with pybiolib and pandas downloaded. For example,
+
+```
+python -m venv ./pybiolib
+source pybiolib/bin/activate
+pip install --upgrade pip
+pip install pybiolib
+pip install pandas
+```
