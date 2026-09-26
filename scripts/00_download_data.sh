@@ -7,8 +7,9 @@ source "$(dirname "${BASH_SOURCE[0]}")/common_path_setup.sh"
 
 # Download each proteome
 while read -r proteome; do
-    # Skip empty lines
+    # Skip empty lines and comments
     [[ -z "$proteome" ]] && continue
+    [[ "$proteome" =~ ^# ]] && continue
 
     echo "Processing $proteome..."
 

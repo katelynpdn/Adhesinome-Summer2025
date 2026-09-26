@@ -171,27 +171,32 @@ for (i in seq_along(required_directories)) {
 
 extract_protein_id <- function(identifier) {
 
-  identifier <- str_remove(
-    identifier,
-    "^>"
-  )
+  # Remove FASTA ">" if present
+  identifier <- str_remove(identifier, "^>")
 
-  parts <- str_split_fixed(
-    identifier,
-    "\\|",
-    3
-  )
+  # Remove anything after the first whitespace
+  identifier <- str_split(identifier, "\\s+")[[1]][1]
 
-  if (ncol(parts) >= 3 && parts[1, 2] != "") {
-    return(parts[1, 2])
+  # Format: PREFIX|ACCESSION|ENTRY_NAME
+  if (str_detect(identifier, "\\|")) {
+    parts <- str_split(identifier, "\\|")[[1]]
+
+    if (length(parts) >= 2 && parts[2] != "") {
+      return(parts[2])
+    }
   }
 
-  return(
-    str_split(
-      identifier,
-      "\\s+"
-    )[[1]][1]
-  )
+  # Format: PREFIX_ACCESSION_ENTRY_NAME
+  if (str_detect(identifier, "_")) {
+    parts <- str_split(identifier, "_")[[1]]
+
+    if (length(parts) >= 2 && parts[2] != "") {
+      return(parts[2])
+    }
+  }
+
+  # If neither format matches, return the identifier itself
+  return(identifier)
 }
 
 
@@ -300,7 +305,7 @@ GPIproteins <- predgpi_df %>%
   ) %>%
   distinct(ID) %>%
   mutate(
-    `GPI-anchor` = TRUE
+    `PredGPI Prediction` = TRUE
   )
 
 all_hmm_df <- all_hmm_df %>%
@@ -309,9 +314,9 @@ all_hmm_df <- all_hmm_df %>%
     by = "ID"
   ) %>%
   mutate(
-    `GPI-anchor` =
+    `PredGPI Prediction` =
       replace_na(
-        `GPI-anchor`,
+        `PredGPI Prediction`,
         FALSE
       )
   )
@@ -381,8 +386,15 @@ if (!all(
 }
 
 netGPI_df <- netGPI_df %>%
+  mutate(
+    likelihood = if_else(is.gpi, likelihood, 0),
+    ID = map_chr(
+      id,
+      extract_protein_id
+    )
+  ) %>%
   select(
-    ID = id,
+    ID,
     `NetGPI Likelihood` = likelihood
   ) %>%
   distinct(
@@ -403,7 +415,6 @@ message("Reading Ser/Thr frequencies...")
 
 ST.protein <- read_tsv(ser_thr_output, col_types = cols())
 
-# Extract protein ID
 # Extract protein ID
 ST.protein <- ST.protein %>%
   mutate(
@@ -519,19 +530,18 @@ ST.window.final <- ST.window %>%
     residue == "ST"
   ) %>%
   transmute(
-    ID = id,
+    Name = id,
     `Max window S/T frequency` = max
   )
 
 all_hmm_df <- all_hmm_df %>%
   left_join(
     ST.window.final,
-    by = "ID"
+    by = "Name"
   )
 
 
 ## === Read TANGO output: average beta-aggregation per residue ===
-Average B-Aggregation per residue
 message("Reading TANGO average aggregation...")
 
 tango_per_sequence <- file.path(

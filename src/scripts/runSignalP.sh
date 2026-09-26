@@ -20,7 +20,7 @@ if ! test -f "output/output.json"; then
 fi
 
 # Run SignalP on each FASTA file
-for infile in *_group_*.fasta
+for infile in ../tmp/*_group_*.fasta
 do
 	echo "Processing $infile"
 	biolib run DTU/SignalP-6 --fastafile "$infile" --output_dir output/ --organism euk --format "none"

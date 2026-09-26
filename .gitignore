@@ -3,7 +3,5 @@
 *.tsv
 *.fasta
 *.fna
-**/results/*
-!results/.gitkeep
 *.pdf
 !XSTREAMdoc.pdf

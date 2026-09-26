@@ -2,7 +2,7 @@
 # title: Run SignalP, PredGPI, NetGPI, Ser/Thr frequency, Beta-aggregation, Tandem repeats, and combine results into a table
         # and process output for each proteome in data/inputProteomes.txt
 # author: Katelyn Nguyen
-# date: 2025-06-16
+# date: 2026-09-24
 
 source "$(dirname "${BASH_SOURCE[0]}")/common_path_setup.sh"
 
@@ -10,8 +10,9 @@ source "$(dirname "${BASH_SOURCE[0]}")/common_path_setup.sh"
 
 while read -r proteome; 
 do
-    # Skip empty lines
+    # Skip empty lines and comments
     [[ -z "$proteome" ]] && continue
+    [[ "$proteome" =~ ^# ]] && continue
 
     echo "Processing $proteome"
 
