@@ -51,6 +51,46 @@ do
     outputDirectory="$RESULTS_DIR/$proteome"
     mkdir -p "$outputDirectory"
 
+    # === FungalRV ===
+    FUNGALRV_OUTPUT="$outputDirectory/fungalrv_output"
+
+    if [[ -f "$FUNGALRV_OUTPUT" ]]; then
+        read -p \
+            "$FUNGALRV_OUTPUT exists from a previous run. Run FungalRV anyways? (y/n) " \
+            fungalContinue
+    else
+        fungalContinue="y"
+    fi
+
+    if [[ "$fungalContinue" == "y" ||
+            "$fungalContinue" == "Y" ||
+            "$fungalContinue" == "yes" ||
+            "$fungalContinue" == "Yes" ]]; then
+        # Prepare FASTA for FungalRV: Remove FASTA ambiguities
+        # FungalRV does not accept long pathnames, so copy the cleaned FASTA into SRC_DIR/data.
+        mkdir -p "$SRC_DIR/tmp"
+        proteomeFile_clean="$(basename "${proteomeFile}_clean.fasta")"
+        echo "-------------Removing FASTA ambiguities-------------"
+        python "$SUBSCRIPTS_DIR/fastaRemoveAmbiguity.py" \
+            "$proteomeFile" \
+            "$SRC_DIR/tmp/$proteomeFile_clean"
+        
+        
+        echo "-------------Running FungalRV-------------"
+        cd "$SRC_DIR/FungalRV_adhesin_predictor"
+
+        perl run_fungalrv_adhesin_predictor.pl \
+            "../tmp/$proteomeFile_clean" \
+            "$FUNGALRV_OUTPUT" \
+            y
+
+        # Clean up temporary files
+        rm -f "$proteomeFile_clean"
+        rm -f "$SRC_DIR/tmp/$proteomeFile_clean"
+    else
+        echo "Skipping FungalRV step, continuing..."
+    fi
+
 
     # === PredGPI ===
 

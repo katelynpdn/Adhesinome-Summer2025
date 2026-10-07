@@ -15,14 +15,7 @@
 # into one proteinTable.csv file.
 #
 # Usage:
-#
 # Rscript parse_output.R <outputDirectory> <proteomeFile>
-#
-# Example:
-#
-# Rscript parse_output.R \
-#     /path/to/results/PROTEOME \
-#     /path/to/data/PROTEOME.fasta
 #
 # ============================================================
 
