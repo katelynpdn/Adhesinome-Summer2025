@@ -86,6 +86,11 @@ message(
 
 extract_protein_id <- function(identifier) {
 
+  # Handle missing values
+  if (is.na(identifier) || identifier == "") {
+    return(NA_character_)
+  }
+
   # Remove FASTA ">" if present
   identifier <- str_remove(identifier, "^>")
 
@@ -119,9 +124,112 @@ extract_protein_id <- function(identifier) {
 
 message("Reading HMMSCAN output...")
 
-hmm.names <- c("target_name", "target_accession", "target_length", "query_name", "query_accession", "query_length", "seq_evalue", "seq_score", "seq_bias", "domain_num", "num_target_domains", "c_evalue", "i_evalue", "domain_score", "domain_bias", "hmm_from", "hmm_to", "ali_from", "ali_to", "env_from", "env_to", "accuracy")
-hmmscan_df <- read_table(file = hmmscan_domtblout_file, col_names = hmm.names, col_types = "cciccidddiiddddiiiiiid", skip = 3)
+hmm.names <- c(
+  "target_name", "target_accession", "target_length",
+  "query_name", "query_accession", "query_length",
+  "seq_evalue", "seq_score", "seq_bias",
+  "domain_num", "num_target_domains",
+  "c_evalue", "i_evalue", "domain_score", "domain_bias",
+  "hmm_from", "hmm_to", "ali_from", "ali_to",
+  "env_from", "env_to", "accuracy"
+)
 
+hmm_lines <- readLines(
+  pfam_file,
+  warn = FALSE
+)
+
+
+# Remove HMMER comment/header lines & blank lines
+hmm_lines <- hmm_lines[
+  !str_starts(
+    str_trim(hmm_lines),
+    "#"
+  )
+]
+hmm_lines <- hmm_lines[
+  str_trim(hmm_lines) != ""
+]
+
+# Split each line into whitespace-separated fields
+hmm_split <- str_split(
+  hmm_lines,
+  "\\s+"
+)
+
+# Extract the first 22 fields and save everything after as domain description.
+hmm_standard_fields <- lapply(
+  hmm_split,
+  function(x) {
+    # Standard HMMER domtblout has at least 22 fields
+    if (length(x) < 22) {
+      c(
+        x,
+        rep(
+          NA_character_,
+          22 - length(x)
+        )
+      )
+    } else {
+      x[1:22]
+    }
+  }
+)
+
+
+# Extract description
+pfam_descriptions <- vapply(
+  hmm_split,
+  function(x) {
+
+    if (length(x) > 22) {
+      paste(
+        x[23:length(x)],
+        collapse = " "
+      )
+    } else {
+      ""
+    }
+
+  },
+  character(1)
+)
+
+
+# Reconstruct the first 22 columns into a table
+hmm_standard_lines <- vapply(
+  hmm_standard_fields,
+  function(x) {
+    paste(
+      x,
+      collapse = " "
+    )
+  },
+  character(1)
+)
+hmmscan_df <- read_table(
+  paste(
+    hmm_standard_lines,
+    collapse = "\n"
+  ),
+  col_names = hmm.names,
+  col_types = "cciccidddiiddddiiiiiid",
+  progress = FALSE
+)
+
+# Add description back
+hmmscan_df <- hmmscan_df %>%
+  mutate(
+    pfam_domain_description = pfam_descriptions
+  )
+
+message(
+  "  Parsed ",
+  nrow(hmmscan_df),
+  " PFAM/domain hits"
+)
+
+# Extract protein IDs
 hmmscan_df <- hmmscan_df %>%
   mutate(
     ID = vapply(
@@ -131,66 +239,59 @@ hmmscan_df <- hmmscan_df %>%
     )
   )
 
-message(
-  "  Parsed ",
-  nrow(hmmscan_df),
-  " PFAM/domain hits"
-)
-
-# Filter out anything that doesn't satisfy inclusion threshold
-#   (seq_evalue \< 0.01 and c-evalue \< 0.01), 
-# Create pfam_domains, unique_domains, and uncertain_domains
-
+# Get most significant hit for each protein
 filtered_hmm_df <- hmmscan_df %>% 
-  filter(seq_evalue < 0.01 & c_evalue < 0.01) %>% 
   group_by(ID) %>%
-  # Collapse into list of pfam domains for each protein
-  reframe(pfam_domains = paste0(target_name, " (", env_from, "-", env_to,  ")", collapse = ", "), 
-          unique_domains = paste(unique(target_name), collapse = ", "))
+  # Find the lowest sequence E-value for each protein
+  group_by(ID) %>%
+  slice_min(
+    order_by = seq_evalue,
+    n = 1,
+    with_ties = FALSE
+  ) %>%
+  ungroup() %>%
+  transmute(
+    ID,
+    `Top PFAM Domain` =
+      target_name,
 
-# # Filter uncertain domains
-# uncertain_domains_df <- hmmscan_df %>%
-#   filter(seq_evalue >= 0.01 | c_evalue >= 0.01) %>%
-#   distinct(ID, target_name, seq_evalue)
+    `PFAM Sequence E-value` =
+      seq_evalue,
 
-# uncertain_domains_df <- uncertain_domains_df %>% 
-#   left_join(filtered_hmm_df %>% 
-#               select(ID, unique_domains), by = "ID") %>%
-#   rowwise() %>%
-#   # Remove uncertain domains already in unique_domains
-#   filter(!target_name %in% strsplit(unique_domains, ", ")[[1]]) %>%
-#   ungroup() %>%
-#   arrange(ID, seq_evalue) %>%   # Sort by ID then E-value (ascending)
-#   group_by(ID) %>%
-#   reframe(`uncertain_domains (E-value)` = paste0(target_name, " (", seq_evalue, ")", collapse = ", "))
-# filtered_hmm_df <- filtered_hmm_df %>%
-#   full_join(uncertain_domains_df, by = "ID") %>%
-#   relocate(`uncertain_domains (E-value)`, .after = last_col())
+    `PFAM Domain Description` =
+      pfam_domain_description
+  )
 
 # Remove old PFAM columns if they already exist
 pfam_columns <- c(
-  "pfam_domains",
-  "unique_domains"
+  "Top PFAM Domain",
+  "PFAM Sequence E-value",
+  "PFAM Domain Description"
 )
-
 protein_table <- protein_table %>%
   select(
     -any_of(pfam_columns)
   )
 
 # Merge PFAM information into protein_table
-all_hmm_df <- protein_table %>%
-  full_join(filtered_hmm_df, by = "ID") %>%
-  relocate(pfam_domains, .after = last_col()) %>%
-  relocate(unique_domains, .after = last_col())
+protein_table <- protein_table %>%
+  left_join(
+    filtered_hmm_df,
+    by = "ID"
+  ) %>%
+  relocate(
+    all_of(pfam_columns),
+    .after = last_col()
+  )
 
 # Replace missing PFAM values with empty strings
 protein_table <- protein_table %>%
   mutate(
-    across(
-      any_of(pfam_columns),
-      ~ replace_na(.x, "")
-    )
+    `Top PFAM Domain` =
+      replace_na(`Top PFAM Domain`, ""),
+
+    `PFAM Domain Description` =
+      replace_na(`PFAM Domain Description`, "")
   )
 
 # === Write output ===
@@ -198,18 +299,21 @@ write_csv(
   protein_table,
   protein_table_file
 )
+
 message(
   "Protein annotation table created: ",
-  output_file
+  protein_table_file
 )
+
 message(
   "  Total proteins: ",
   nrow(protein_table)
 )
+
 message(
-  "  Proteins with significant PFAM domains: ",
+  "  Proteins with PFAM domains: ",
   sum(
-    protein_table$pfam_domains != "",
+    protein_table$`Top PFAM Domain` != "",
     na.rm = TRUE
   )
 )

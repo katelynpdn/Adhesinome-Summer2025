@@ -77,10 +77,12 @@ do
 
     # === Add Pfam results to proteinTable.csv ===
     echo "-------------Adding Pfam results to proteinTable.csv-------------"
-    python "$SUBSCRIPTS_DIR/addPfamToProteinTable.py" \
-        "$outputDirectory/hmmscan_domtblout" \
-        "$outputFile" \
-        "$outputFile"
+      if ! Rscript "$SUBSCRIPTS_DIR/parse_pfam.R" \
+        "$outputDirectory"; then
+
+        echo "ERROR: Failed to add HMMSCAN PFAM results to proteinTable.csv for $proteome"
+        continue
+    fi
 
     echo ""
     echo "Finished $proteome"
