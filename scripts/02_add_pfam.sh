@@ -62,7 +62,7 @@ do
     mkdir -p "$outputDirectory"
     outputFile="$outputDirectory/proteinTable.csv"
 
-    # ==== MMSCAN on Pfam ====
+    # ==== HMMSCAN on Pfam ====
     # If hmmscan_domtblout already exists in outputDirectory, ask user if they want to continue
     hmmContinue="y"
     if [ -f "$outputDirectory/hmmscan_domtblout" ]; then
@@ -77,7 +77,7 @@ do
 
     # === Add Pfam results to proteinTable.csv ===
     echo "-------------Adding Pfam results to proteinTable.csv-------------"
-      if ! Rscript "$SUBSCRIPTS_DIR/parse_pfam.R" \
+    if ! Rscript "$SUBSCRIPTS_DIR/parse_pfam.R" \
         "$outputDirectory"; then
 
         echo "ERROR: Failed to add HMMSCAN PFAM results to proteinTable.csv for $proteome"

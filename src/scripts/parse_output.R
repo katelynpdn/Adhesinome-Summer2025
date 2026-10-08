@@ -61,6 +61,11 @@ if (!file.exists(proteomeFile)) {
 
 # === Define input/output files ===
 
+fungalrv_file <- file.path(
+  outputDirectory,
+  "fungalrv_output"
+)
+
 predgpi_file <- file.path(
   outputDirectory,
   "predgpi_output"
@@ -105,6 +110,7 @@ output_file <- file.path(
 # === Check required tool outputs ===
 
 required_files <- c(
+  fungalrv_file,
   predgpi_file,
   signalp_file,
   netgpi_file,
@@ -112,6 +118,7 @@ required_files <- c(
 )
 
 required_file_names <- c(
+  "FungalRV output",
   "PredGPI output",
   "SignalP output",
   "NetGPI output",
@@ -268,6 +275,48 @@ message(
   " proteins."
 )
 
+# === FungalRV ===
+
+message("Reading FungalRV...")
+
+fungalRV_df <- read_tsv(
+  fungalrv_file,
+  skip = 3, # FungalRV output contains 3 header/comment lines
+  col_names = FALSE,
+  show_col_types = FALSE
+)
+
+if (ncol(fungalRV_df) < 2) {
+
+  stop(
+    "ERROR: FungalRV output has fewer than 2 columns:\n  ",
+    fungalrv_file
+  )
+}
+
+fungalRV_df <- fungalRV_df %>%
+  mutate(
+    ID = map_chr(
+      X1,
+      extract_protein_id
+    )
+  ) %>%
+  select(
+    ID,
+    `FungalRV Score` = X2
+  ) %>%
+  distinct(
+    ID,
+    .keep_all = TRUE
+  )
+
+all_hmm_df <- all_hmm_df %>%
+  left_join(
+    fungalRV_df,
+    by = "ID"
+  )
+
+
 # === PredGPI === 
 
 message("Reading PredGPI...")
@@ -380,7 +429,6 @@ if (!all(
 
 netGPI_df <- netGPI_df %>%
   mutate(
-    likelihood = if_else(is.gpi, likelihood, 0),
     ID = map_chr(
       id,
       extract_protein_id
@@ -388,6 +436,7 @@ netGPI_df <- netGPI_df %>%
   ) %>%
   select(
     ID,
+    `NetGPI Prediction` = is.gpi,
     `NetGPI Likelihood` = likelihood
   ) %>%
   distinct(

@@ -20,6 +20,9 @@ source "$(dirname "${BASH_SOURCE[0]}")/common_path_setup.sh"
 # Output files for negative subsets
 # ------------------------------------------------------------
 
+outputDir="$RESULTS_DIR/curatedSets"
+mkdir -p "$outputDir"
+
 subset1="$outputDir/negative_subset1_fail_all.csv"
 subset2="$outputDir/negative_subset2_fail_two.csv"
 
