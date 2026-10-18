@@ -1,230 +1,167 @@
 #!/bin/bash
-# title: Extract adhesin candidates and negative subsets based on
-#       SignalP, NetGPI, and PredGPI criteria
+# title: Combine protein tables and add failed test information
 #
-#       Positive candidates:
-#         - Pass at least 2 of 3 criteria
+# Output:
+#   - results/combinedProteinTable.csv
+#     All proteins from all proteomes, with Proteome and failed_tests
+#     columns, sorted by number of failed tests.
 #
-#       Negative subset 1:
-#         - Fail all 3 criteria
+# Criteria:
+#   - SignalP: score > 0.5
+#   - NetGPI: TRUE
+#   - PredGPI: TRUE
 #
-#       Negative subset 2:
-#         - Fail exactly 2 of 3 criteria
+# failed_tests:
+#   - NA if all three criteria pass
+#   - Otherwise, space-separated names of failed tests
 #
 # author: Katelyn Nguyen
-# date: 2026-09-26
+# date: 2026-10-17
 
 source "$(dirname "${BASH_SOURCE[0]}")/common_path_setup.sh"
 
-# ------------------------------------------------------------
-# Output files for negative subsets
-# ------------------------------------------------------------
+# Output file
+combinedTable="$RESULTS_DIR/combinedProteinTable.csv"
 
-outputDir="$RESULTS_DIR/curatedSets"
-mkdir -p "$outputDir"
+# Temporary files
+tmpCombined=$(mktemp)
+tmpRows=$(mktemp)
 
-subset1="$outputDir/negative_subset1_fail_all.csv"
-subset2="$outputDir/negative_subset2_fail_two.csv"
+trap 'rm -f "$tmpCombined" "$tmpRows"' EXIT
 
-# Start fresh negative subset files
-> "$subset1"
-> "$subset2"
+# Start fresh
+: > "$tmpCombined"
+: > "$tmpRows"
 
-# Track whether headers have been written
-subset1_header_written=false
-subset2_header_written=false
-
+combined_header_written=false
 
 # ------------------------------------------------------------
 # Process each proteome
 # ------------------------------------------------------------
 
-while read -r proteome;
-do
+while IFS= read -r proteome || [[ -n "$proteome" ]]; do
+
     # Skip empty lines
     [[ -z "$proteome" ]] && continue
 
     echo "Processing $proteome"
 
-    # Find results directory for the proteome
     proteomeResultsDir="$RESULTS_DIR/$proteome"
-
-    if [[ ! -d "$proteomeResultsDir" ]]; then
-        echo "ERROR: Results directory for $proteome does not exist: $proteomeResultsDir"
-        echo "Skipping $proteome..."
-        continue
-    fi
-
-    # Input protein table
     proteinTable="$proteomeResultsDir/proteinTable.csv"
 
-    if [[ ! -f "$proteinTable" ]]; then
-        echo "ERROR: proteinTable.csv does not exist for $proteome:"
-        echo "  $proteinTable"
+    if [[ ! -d "$proteomeResultsDir" ]]; then
+        echo "ERROR: Results directory does not exist: $proteomeResultsDir"
         echo "Skipping $proteome..."
         continue
     fi
 
-    # Positive candidate output
-    OUTPUT_FILE="$proteomeResultsDir/adhesinCandidateTable.csv"
+    if [[ ! -f "$proteinTable" ]]; then
+        echo "ERROR: proteinTable.csv does not exist: $proteinTable"
+        echo "Skipping $proteome..."
+        continue
+    fi
 
-    # Start fresh for this proteome
-    > "$OUTPUT_FILE"
-
-
+    # --------------------------------------------------------
     # Process proteinTable.csv
+    # --------------------------------------------------------
 
+    
     awk -F',' -v OFS=',' \
         -v proteome="$proteome" \
-        -v subset1="$subset1" \
-        -v subset2="$subset2" \
-        -v output="$OUTPUT_FILE" \
-        -v subset1_header_written="$subset1_header_written" \
-        -v subset2_header_written="$subset2_header_written" '
-
-        # ----------------------------------------------------
-        # Header
-        # ----------------------------------------------------
+        -v combined="$tmpCombined" \
+        -v rows="$tmpRows" \
+        -v combined_header_written="$combined_header_written" '
         NR == 1 {
+            predgpi_col = 0
+            signalp_col = 0
+            netgpi_col = 0
 
             for (i = 1; i <= NF; i++) {
-                if ($i == "ID")
-                    id_col = i
-
                 if ($i == "PredGPI Prediction")
                     predgpi_col = i
 
                 if ($i == "Signal Peptide")
                     signalp_col = i
 
-                if ($i == "NetGPI Likelihood")
+                if ($i == "NetGPI Prediction")
                     netgpi_col = i
             }
 
-            # Check that all required columns exist
-            if (!id_col || !predgpi_col || !signalp_col || !netgpi_col) {
-                print "ERROR: Required column missing from proteinTable.csv" > "/dev/stderr"
+            if (!predgpi_col || !signalp_col || !netgpi_col) {
+                print "ERROR: Required column missing from " FILENAME > "/dev/stderr"
                 exit 1
             }
 
-            # ------------------------------------------------
-            # Positive candidate header
-            # ------------------------------------------------
-            print $0, "Failed Test" > output
-
-            # ------------------------------------------------
-            # Negative subset headers
-            # ------------------------------------------------
-            if (subset1_header_written == "false") {
-                print $0, "proteome" > subset1
-                subset1_header_written = "true"
-            }
-
-            if (subset2_header_written == "false") {
-                print $0, "proteome" > subset2
-                subset2_header_written = "true"
+            if (combined_header_written == "false") {
+                print "Proteome", $0, "failed_tests" > combined
             }
 
             next
         }
 
-
-        # ----------------------------------------------------
-        # Process each protein
-        # ----------------------------------------------------
         {
-
-            # Determine whether each criterion passes
-
-            signalp_pass = ($signalp_col > 0.5)
-
-            netgpi_pass = ($netgpi_col > 0.5)
-
+            signalp_pass = ($signalp_col + 0 > 0.5)
+            netgpi_pass = ($netgpi_col == "TRUE")
             predgpi_pass = ($predgpi_col == "TRUE")
 
-
-            # Count criteria passed and failed
-
             pass_count = signalp_pass + netgpi_pass + predgpi_pass
-
             fail_count = 3 - pass_count
 
+            failed_tests = ""
 
-            # =================================================
-            # POSITIVE CANDIDATES
-            #
-            # Keep proteins passing at least 2/3 criteria.
-            # =================================================
+            if (!signalp_pass)
+                failed_tests = failed_tests "SignalP "
 
-            if (pass_count >= 2) {
+            if (!netgpi_pass)
+                failed_tests = failed_tests "NetGPI "
 
-                # Determine failed test
-                #
-                # If all three pass:
-                #     NA
-                #
-                # Otherwise identify the single failed test.
+            if (!predgpi_pass)
+                failed_tests = failed_tests "PredGPI "
 
-                if (!signalp_pass)
-                    failed_test = "SignalP"
+            sub(/ $/, "", failed_tests)
 
-                else if (!netgpi_pass)
-                    failed_test = "NetGPI"
+            if (failed_tests == "")
+                failed_tests = "NA"
 
-                else if (!predgpi_pass)
-                    failed_test = "PredGPI"
-
-                else
-                    failed_test = "NA"
-
-
-                # Write original row + Failed Test
-                print $0, failed_test > output
-            }
-
-
-            # =================================================
-            # NEGATIVE SUBSET 1
-            #
-            # Fail all three criteria.
-            # =================================================
-
-            if (fail_count == 3) {
-
-                # Write original row + proteome
-                print $0, proteome >> subset1
-            }
-
-
-            # =================================================
-            # NEGATIVE SUBSET 2
-            #
-            # Fail exactly two criteria.
-            # =================================================
-
-            else if (fail_count == 2) {
-
-                # Write original row + proteome
-                print $0, proteome >> subset2
-            }
+            print fail_count, proteome, $0, failed_tests >> rows
         }
-
     ' "$proteinTable"
+
+
+    if [[ $? -ne 0 ]]; then
+        echo "ERROR: Failed to process $proteinTable"
+        exit 1
+    fi
+
+    combined_header_written=true
 
     echo "Finished $proteome"
 
-    echo "Positive candidates saved to:"
-    echo "  $OUTPUT_FILE"
-
 done < "$INPUT_FILE"
+
+# ------------------------------------------------------------
+# Sort combined results by number of failed tests
+# ------------------------------------------------------------
+
+if [[ "$combined_header_written" == "true" ]]; then
+
+    {
+        # Header from the first valid protein table
+        head -n 1 "$tmpCombined"
+
+        # Sort by failure count (0, 1, 2, 3), then remove sort key
+        sort -t',' -k1,1n "$tmpRows" |
+            cut -d',' -f2-
+    } > "$combinedTable"
+
+else
+    echo "ERROR: No valid protein tables were processed." >&2
+    exit 1
+fi
 
 echo ""
 echo "All proteomes processed."
 
 echo ""
-echo "Negative subset 1 (fail all three criteria):"
-echo "  $subset1"
-
-echo ""
-echo "Negative subset 2 (fail exactly two criteria):"
-echo "  $subset2"
+echo "Combined protein table saved to:"
+echo "  $combinedTable"

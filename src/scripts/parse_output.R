@@ -416,13 +416,13 @@ netGPI_df <- read_tsv(
 )
 
 if (!all(
-  c("id", "likelihood") %in%
+  c("id", "is.gpi", "likelihood") %in%
     names(netGPI_df)
 )) {
 
   stop(
     "ERROR: NetGPI output must contain columns named ",
-    "'id' and 'likelihood'.\nFile:\n  ",
+    "'id', 'is.gpi', and 'likelihood'.\nFile:\n  ",
     netgpi_file
   )
 }
@@ -716,11 +716,11 @@ tango.summary <- tango.res.df %>%
       `B-agg seq count` =
         n(),
 
-      `B-agg sequences` =
-        paste(
-          sort(seq),
-          collapse = ", "
-        ),
+      # `B-agg sequences` =
+      #   paste(
+      #     sort(seq),
+      #     collapse = ", "
+      #   ),
       .groups = "drop"
     )
 
